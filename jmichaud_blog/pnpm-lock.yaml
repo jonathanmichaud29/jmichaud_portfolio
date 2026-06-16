@@ -38,16 +38,29 @@ importers:
       astro:
         specifier: ^6.4.7
         version: 6.4.7(@types/node@24.13.2)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.62.0)(yaml@2.9.0)
+      mdast-util-to-string:
+        specifier: ^4.0.0
+        version: 4.0.0
       react:
         specifier: ^19.2.7
         version: 19.2.7
       react-dom:
         specifier: ^19.2.7
         version: 19.2.7(react@19.2.7)
+      reading-time:
+        specifier: ^1.5.0
+        version: 1.5.0
       tailwindcss:
         specifier: ^4.3.1
         version: 4.3.1
       typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+    devDependencies:
+      '@types/mdast':
+        specifier: ^4.0.4
+        version: 4.0.4
+      vfile:
         specifier: ^6.0.3
         version: 6.0.3
 
@@ -1870,6 +1883,9 @@ packages:
   readdirp@5.0.0:
     resolution: {integrity: sha512-9u/XQ1pvrQtYyMpZe7DXKv2p5CNvyVwzUB6uhLAnQwHMSgKMBR62lc7AHljaeteeHXn11XTAaLLUVZYVZyuRBQ==}
     engines: {node: '>= 20.19.0'}
+
+  reading-time@1.5.0:
+    resolution: {integrity: sha512-onYyVhBNr4CmAxFsKS7bz+uTLRakypIe4R+5A824vBSkQy/hB3fZepoVEf8OVAxzLvK+H/jm9TzpI3ETSm64Kg==}
 
   recma-build-jsx@1.0.0:
     resolution: {integrity: sha512-8GtdyqaBcDfva+GUKDr3nev3VpKAhup1+RvkMvUxURHpW7QyIvk9F5wz7Vzo06CEMSilw6uArgRqhpiUcWp8ew==}
@@ -4573,6 +4589,8 @@ snapshots:
   readdirp@4.1.2: {}
 
   readdirp@5.0.0: {}
+
+  reading-time@1.5.0: {}
 
   recma-build-jsx@1.0.0:
     dependencies:

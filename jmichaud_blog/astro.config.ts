@@ -11,6 +11,8 @@ import node from "@astrojs/node";
 
 import tailwindcss from "@tailwindcss/vite";
 
+import { remarkReadingTime } from "./src/plugins/remark-reading-time";
+
 // https://astro.build/config
 export default defineConfig({
   site: "https://www.jmichaud.ca",
@@ -20,9 +22,14 @@ export default defineConfig({
     // Type assertion needed: @tailwindcss/vite plugin type doesn't align with Vite's PluginOption
     plugins: [tailwindcss() as any],
   },
+
   integrations: [react(), mdx(), sitemap()],
 
   adapter: node({
     mode: "standalone",
   }),
+
+  markdown: {
+    remarkPlugins: [remarkReadingTime],
+  },
 });
