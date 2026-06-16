@@ -4,7 +4,7 @@ import { z } from "astro/zod";
 
 const blog = defineCollection({
   loader: glob({ pattern: "**/*.mdx", base: "./src/content/blog" }),
-  schema: z.union([
+  schema: z.discriminatedUnion("type", [
     z.object({
       type: z.literal("tech-article"),
       title: z.string(),
