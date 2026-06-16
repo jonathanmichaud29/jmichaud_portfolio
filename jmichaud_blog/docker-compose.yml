@@ -1,0 +1,37 @@
+services:
+
+  node:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jmichaud_blog_node
+    restart: unless-stopped
+    environment:
+      - HOST=0.0.0.0
+      - PORT=4321
+      - RESEND_API_KEY=${RESEND_API_KEY}
+    env_file:
+      - .env
+    expose:
+      - "4321"
+    networks:
+      - internal
+
+  nginx:
+    image: nginx:alpine
+    container_name: jmichaud_blog_nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      # Serve Astro static client assets directly — bypasses Node entirely
+      - ./dist/client:/var/www/html:ro
+    depends_on:
+      - node
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
