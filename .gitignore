@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+/jspm_packages/
+/web_modules/
+
+# Astro Build Outputs & Cache
+dist/
+.astro/
+*.tsbuildinfo
+
+# Local Fonts (Optional Astro default)
+fonts/
+
+# Logs
+lines
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Diagnostic Reports & Coverage
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+/nyc_output
+/coverage
+/.eslintcache
+
+# Environment Variables & Secrets
+.env
+.env.production
+.env.local
+.env.development
+.env.*.local
+
+# Hosting Provider Directories
+.netlify/
+.vercel/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Custom Rules
+package-lock.json
+yarn.lock
