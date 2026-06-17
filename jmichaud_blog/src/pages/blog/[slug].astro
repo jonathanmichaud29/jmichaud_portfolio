@@ -1,0 +1,53 @@
+---
+export const prerender = true;
+
+import { getCollection, render } from "astro:content";
+import type { CollectionEntry } from "astro:content";
+import TechArticleLayout from "../../layouts/TechArticleLayout.astro";
+import BlogPostLayout from "../../layouts/BlogPostLayout.astro";
+
+export async function getStaticPaths() {
+  const [allPosts, allSeries] = await Promise.all([
+    getCollection("blog", ({ data }) => !data.noindex),
+    getCollection("series"),
+  ]);
+
+  // Index series by id for O(1) lookup — avoids a nested find() inside the map.
+  const seriesById = new Map(allSeries.map((s) => [s.id, s]));
+
+  return allPosts.map((post) => {
+    // Resolve the full series entry if this post is a series member.
+    // post.data.series is a reference object { id, collection } or undefined.
+    const series = post.data.series
+      ? seriesById.get(post.data.series.id)
+      : undefined;
+
+    return {
+      params: { slug: post.id },
+      props: { post, series: series ?? null },
+    };
+  });
+}
+
+interface Props {
+  post: CollectionEntry<"blog">;
+  // null for standalone posts — explicitly typed so layouts can't
+  // accidentally treat undefined as "series not yet resolved".
+  series: CollectionEntry<"series"> | null;
+}
+
+const { post, series } = Astro.props;
+const { Content } = await render(post);
+---
+
+{
+  post.data.type === "tech-article" ? (
+    <TechArticleLayout post={post} series={series}>
+      <Content />
+    </TechArticleLayout>
+  ) : (
+    <BlogPostLayout post={post} series={series}>
+      <Content />
+    </BlogPostLayout>
+  )
+}

@@ -1,0 +1,123 @@
+---
+// Prerender explicitly so this page is always static, regardless of whether
+// astro.config.ts uses output: "server" or output: "hybrid".
+export const prerender = true;
+
+import { getCollection } from "astro:content";
+import type { CollectionEntry } from "astro:content";
+import { SITE } from "../../config/site";
+
+// ---------------------------------------------------------------------------
+// getStaticPaths
+//
+// Generates one route per series entry in the collection.
+// Each route receives its series metadata and its ordered, published posts
+// as props — no additional data fetching needed in the component.
+// ---------------------------------------------------------------------------
+export async function getStaticPaths() {
+  const [allSeries, allPosts] = await Promise.all([
+    getCollection("series"),
+    getCollection("blog", ({ data }) => !data.noindex),
+  ]);
+
+  return allSeries.map((series) => {
+    // Collect all published posts that reference this series.
+    const seriesPosts = allPosts.filter(
+      (post) => post.data.series?.id === series.id
+    );
+
+    // Order by seriesPart ascending (pt1 first).
+    // Posts without seriesPart sort to the front (treated as 0) — this is a
+    // content authoring error, not a valid state, but we degrade gracefully.
+    const orderedPosts = seriesPosts.sort(
+      (a, b) => (a.data.seriesPart ?? 0) - (b.data.seriesPart ?? 0)
+    );
+
+    return {
+      // The dynamic segment: matches /series/docker-networking, etc.
+      params: { seriesSlug: series.data.slug },
+      props: { series, orderedPosts },
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Component props — fully typed from getStaticPaths output
+// ---------------------------------------------------------------------------
+interface Props {
+  series: CollectionEntry<"series">;
+  orderedPosts: CollectionEntry<"blog">[];
+}
+
+const { series, orderedPosts } = Astro.props;
+const { title, description, publishedAt, updatedAt } = series.data;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title} | {SITE.name}</title>
+    <meta name="description" content={description} />
+  </head>
+  <body>
+    <nav>
+      <a href="/">Home</a>
+      {" / "}
+      <a href="/blog">Blog</a>
+      {" / "}
+      <span>{title}</span>
+    </nav>
+
+    <main>
+      <header>
+        <h1>{title}</h1>
+        <p>{description}</p>
+        <p>
+          <time datetime={publishedAt.toISOString()}>
+            Started {publishedAt.toLocaleDateString("en-CA")}
+          </time>
+          {
+            updatedAt > publishedAt && (
+              <>
+                {" · Updated "}
+                <time datetime={updatedAt.toISOString()}>
+                  {updatedAt.toLocaleDateString("en-CA")}
+                </time>
+              </>
+            )
+          }
+          {" · "}
+          {orderedPosts.length}
+          {orderedPosts.length === 1 ? " part" : " parts"}
+        </p>
+      </header>
+
+      <ol>
+        {
+          orderedPosts.map((post) => (
+            <li>
+              <article>
+                <a href={`/blog/${post.id}`}>
+                  {post.data.seriesPart !== undefined && (
+                    <span>Part {post.data.seriesPart} — </span>
+                  )}
+                  {post.data.title}
+                </a>
+                <p>{post.data.description}</p>
+                <time datetime={post.data.publishedAt.toISOString()}>
+                  {post.data.publishedAt.toLocaleDateString("en-CA")}
+                </time>
+                {post.data.readingTime !== undefined && (
+                  <span> · {post.data.readingTime} min read</span>
+                )}
+              </article>
+            </li>
+          ))
+        }
+      </ol>
+    </main>
+  </body>
+</html>

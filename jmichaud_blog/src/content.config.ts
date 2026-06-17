@@ -83,7 +83,25 @@ const series = defineCollection({
     title: z.string(),
     slug: z.string(),
     description: z.string(),
-    order: z.array(z.string()),
+    // publishedAt: when the first part was published.
+    // Set once on series creation — never updated after that.
+    // Used as datePublished in the JSON-LD ItemList for the series index page.
+    publishedAt: z.coerce.date(),
+    // updatedAt: bumped manually each time a new part is published.
+    // This is the sort key used by getLatestFeedItems — not publishedAt.
+    // Signals "this series was recently active" independently of any single post.
+    updatedAt: z.coerce.date(),
+    // ogImage: optional editorial override for the series card and og:image.
+    // When absent, the query helper falls back to the latest post's ogImage.
+    ogImage: z.string().optional(),
+    // order: slugs of PUBLISHED parts only, in reading order (pt1 first).
+    // - Used to determine the latest part: highest index = highest seriesPart.
+    // - Never list a slug here without a corresponding .mdx file — the query
+    //   helper resolves the latest part href from this array, and a dangling
+    //   slug produces a broken link with no build-time error.
+    // - min(1): a series with zero published parts is a data error and will
+    //   fail the build explicitly rather than silently producing a broken card.
+    order: z.array(z.string()).min(1),
   }),
 });
 

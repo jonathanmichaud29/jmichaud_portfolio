@@ -1,5 +1,8 @@
 ---
+import { getLatestFeedItems } from "../lib/content/queries";
+import { SITE } from "../config/site";
 
+const latest = await getLatestFeedItems(3);
 ---
 
 <html lang="en">
@@ -12,6 +15,21 @@
 		<title>Astro</title>
 	</head>
 	<body>
-		<h1>Welcome to Astro, le petit robot</h1>
+		<h1>Welcome to Astro, le ptit robot</h1>
+    {latest.map((item) => (
+      <hr />
+      <article>
+        <a href={item.href}>{item.title}</a>
+        <img src={item.ogImage ?? SITE.defaultOgImage} alt="" />
+        {item.kind === "series" && (
+          <span>Series · {item.partCount} {item.partCount === 1 ? "part" : "parts"}</span>
+        )}
+        <p>{item.description}</p>
+        <time datetime={item.publishedAt.toISOString()}>
+          {item.publishedAt.toLocaleDateString()}
+        </time>
+      </article>
+      <hr />
+    ))}
 	</body>
 </html>

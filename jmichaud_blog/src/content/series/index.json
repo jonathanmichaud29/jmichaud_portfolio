@@ -4,6 +4,11 @@
     "title": "Docker Networking Deep Dive",
     "slug": "docker-networking",
     "description": "A deep dive into Docker networking concepts.",
-    "order": ["docker-networking-pt1", "docker-networking-pt2"]
+    "publishedAt": "2025-01-01",
+    "updatedAt": "2026-02-02",
+    "order": [
+      "docker-networking-pt1",
+      "docker-networking-pt2"
+    ]
   }
 ]

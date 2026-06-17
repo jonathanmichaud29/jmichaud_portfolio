@@ -1,0 +1,70 @@
+---
+import type { CollectionEntry } from "astro:content";
+
+interface Props {
+  // Narrowed to tech-article — proficiencyLevel and dependencies
+  // are guaranteed present (if set) without optional chaining gymnastics.
+  post: CollectionEntry<"blog"> & { data: { type: "tech-article" } };
+  series: CollectionEntry<"series"> | null;
+}
+
+const { post, series } = Astro.props;
+const { title, description, publishedAt, updatedAt, proficiencyLevel, dependencies, readingTime } = post.data;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+  </head>
+  <body>
+    <nav>
+      <a href="/">Home</a>
+      {" / "}
+      <a href="/blog">Blog</a>
+      {" / "}
+      {series && (
+        <>
+          <a href={`/series/${series.data.slug}`}>{series.data.title}</a>
+          {" / "}
+        </>
+      )}
+      <span>{title}</span>
+    </nav>
+
+    <main>
+      <header>
+        <h1>{title}</h1>
+        <p>{description}</p>
+        <p>
+          <time datetime={publishedAt.toISOString()}>
+            {publishedAt.toLocaleDateString("en-CA")}
+          </time>
+          {updatedAt && (
+            <>
+              {" · Updated "}
+              <time datetime={updatedAt.toISOString()}>
+                {updatedAt.toLocaleDateString("en-CA")}
+              </time>
+            </>
+          )}
+          {readingTime !== undefined && <span> · {readingTime} min read</span>}
+          {proficiencyLevel && <span> · {proficiencyLevel}</span>}
+        </p>
+        {dependencies && dependencies.length > 0 && (
+          <ul aria-label="Dependencies">
+            {dependencies.map((dep) => <li>{dep}</li>)}
+          </ul>
+        )}
+      </header>
+
+      <article>
+        <slot />
+      </article>
+    </main>
+  </body>
+</html>
