@@ -3,13 +3,13 @@
 # ============================================================
 FROM node:22.15.0-alpine AS builder
 
-# Enable pnpm via corepack (ships with Node 22)
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# corepack reads packageManager from package.json — no version pinning needed here
+RUN corepack enable
 
 WORKDIR /app
 
 # Install dependencies first (layer cache — only re-runs when lockfile changes)
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 # Copy source and build
@@ -21,7 +21,8 @@ RUN pnpm build
 # ============================================================
 FROM node:22.15.0-alpine AS runtime
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# corepack reads packageManager from package.json — no version pinning needed here
+RUN corepack enable
 
 WORKDIR /app
 
@@ -29,6 +30,7 @@ WORKDIR /app
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/pnpm-lock.yaml ./
+COPY --from=builder /app/pnpm-workspace.yaml ./
 
 # Install production dependencies only
 RUN pnpm install --frozen-lockfile --prod

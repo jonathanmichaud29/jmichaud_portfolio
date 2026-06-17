@@ -16,3 +16,18 @@ Portfolio Website
 - Containerized : Docker (single Nginx container for static output + optional Node container for SSR endpoint)
 - CI/CD : ArgoCD + Helm (already in stack)
 - Secrets : HashiCorp Vault → K8s Secret → env var
+
+## Local addressse
+
+http://localhost:8080/
+
+## Local Docker usefull commands
+
+**# Which containers are running**
+docker-compose ps
+
+**# Check Nginx logs**
+docker-compose logs nginx
+
+**# Check Astro Node logs**
+docker-compose logs node

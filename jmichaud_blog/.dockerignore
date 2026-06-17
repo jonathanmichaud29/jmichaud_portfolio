@@ -1,0 +1,11 @@
+node_modules
+dist
+.git
+.env
+.vscode
+.astro
+Dockerfile
+docker-compose.yml
+nginx.conf
+README.md
+readme.md
