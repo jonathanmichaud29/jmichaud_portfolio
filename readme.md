@@ -17,9 +17,19 @@ Portfolio Website
 - CI/CD : ArgoCD + Helm (already in stack)
 - Secrets : HashiCorp Vault → K8s Secret → env var
 
-## Local addressse
+## How to access webpages
 
-http://localhost:8080/
+### Local HMR
+
+**Homepage** : http://localhost:4321/
+**Single post** : http://localhost:4321/blog/hello-world
+**Single post in a serie** : http://localhost:4321/blog/docker-networking-pt1
+**Serie's posts** : http://localhost:4321/series/docker-networking
+
+### Production build simulation
+
+**Homepage** : http://localhost:8080/
+\*\*
 
 ## Local Docker usefull commands
 

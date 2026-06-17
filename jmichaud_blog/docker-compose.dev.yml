@@ -1,0 +1,38 @@
+# ============================================================
+# Dev override — use with:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# What this changes vs docker-compose.yml:
+#   - node: uses Dockerfile.dev, bind-mounts source, runs pnpm dev
+#   - nginx: disabled — browser hits Astro dev server directly on :4321
+# ============================================================
+services:
+
+  node:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: jmichaud_blog_node_dev
+    volumes:
+      # Bind mount: host source → container. File changes are immediate.
+      - .:/app
+      # Anonymous volume: keeps container's node_modules intact.
+      # Prevents the bind mount above from shadowing it with the host's
+      # node_modules (which may be absent or built for a different OS/arch).
+      - /app/node_modules
+    ports:
+      # Expose Astro dev server directly — no Nginx in front.
+      # Nginx is a production concern; it adds no value in the dev loop.
+      - "4321:4321"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=4321
+    env_file:
+      - .env
+    #command: pnpm dev --host 0.0.0.0
+
+  nginx:
+    # Nginx serves dist/client/ — that directory doesn't exist in dev mode.
+    # Disable it entirely to avoid a misleading running-but-useless container.
+    profiles:
+      - production-only
