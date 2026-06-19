@@ -1,4 +1,21 @@
 ---
+/**
+ * /blog/[slug].astro
+ *
+ * Dynamic route for all blog posts — both standalone and series members.
+ * This file's only responsibilities are:
+ *   1. getStaticPaths() — enumerate all published posts and resolve their
+ *      series entry for O(1) lookup at render time
+ *   2. Type-narrow post.data.type and dispatch to the correct layout
+ *
+ * Everything else — <head> meta, schema, header, footer, prose styles —
+ * is owned by TechArticleLayout or BlogPostLayout, both of which extend
+ * BaseLayout.
+ *
+ * URL structure: /blog/[slug] — flat, series membership is NOT encoded
+ * in the URL. See SEO_Strategy.md for the rationale.
+ */
+
 export const prerender = true;
 
 import { getCollection, render } from "astro:content";
@@ -12,40 +29,70 @@ export async function getStaticPaths() {
     getCollection("series"),
   ]);
 
-  // Index series by id for O(1) lookup — avoids a nested find() inside the map.
+  // Index series by id for O(1) lookup — avoids a nested find() per post.
   const seriesById = new Map(allSeries.map((s) => [s.id, s]));
 
   return allPosts.map((post) => {
-    // Resolve the full series entry if this post is a series member.
-    // post.data.series is a reference object { id, collection } or undefined.
+    // post.data.series is a reference object { id, collection } when declared
+    // with reference() in the schema, or undefined for standalone posts.
     const series = post.data.series
       ? seriesById.get(post.data.series.id)
       : undefined;
 
     return {
       params: { slug: post.id },
-      props: { post, series: series ?? null },
+      props: {
+        post,
+        // Explicitly null for standalone posts — layouts check `series !== null`,
+        // not `series !== undefined`, to prevent accidental falsy checks on both.
+        series: series ?? null,
+      },
     };
   });
 }
 
 interface Props {
   post: CollectionEntry<"blog">;
-  // null for standalone posts — explicitly typed so layouts can't
-  // accidentally treat undefined as "series not yet resolved".
   series: CollectionEntry<"series"> | null;
 }
 
 const { post, series } = Astro.props;
 const { Content } = await render(post);
+
+// ---------------------------------------------------------------------------
+// Type narrowing
+//
+// CollectionEntry<"blog"> is the discriminated union of all blog post types.
+// TechArticleLayout and BlogPostLayout each expect the narrowed intersection
+// type — TypeScript cannot infer the narrowing from the conditional below
+// without an explicit guard.
+//
+// We use type predicate functions rather than `as` casts so TypeScript
+// actually validates the discriminant rather than silently accepting anything.
+// ---------------------------------------------------------------------------
+function isTechArticle(
+  p: CollectionEntry<"blog">
+): p is CollectionEntry<"blog"> & { data: { type: "tech-article" } } {
+  return p.data.type === "tech-article";
+}
+
+function isBlogPost(
+  p: CollectionEntry<"blog">
+): p is CollectionEntry<"blog"> & { data: { type: "blog-post" } } {
+  return p.data.type === "blog-post";
+}
 ---
 
 {
-  post.data.type === "tech-article" ? (
+  isTechArticle(post) && (
     <TechArticleLayout post={post} series={series}>
       <Content />
     </TechArticleLayout>
-  ) : (
+  )
+}
+
+{
+  isBlogPost(post) && (
     <BlogPostLayout post={post} series={series}>
       <Content />
     </BlogPostLayout>

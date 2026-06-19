@@ -1,70 +1,194 @@
 ---
+/**
+ * TechArticleLayout.astro
+ *
+ * Layout for tech-article typed entries (code, architecture, tooling,
+ * infrastructure). Extends the shared post structure with additional
+ * fields specific to TechArticle schema: proficiencyLevel, dependencies.
+ *
+ * What this layout owns:
+ *   - TechArticle + BreadcrumbList schema composition
+ *   - Article header with proficiencyLevel badge + dependencies list
+ *   - Series nav breadcrumb when the post belongs to a series
+ *   - <slot> for MDX body content
+ *
+ * What this layout deliberately does NOT own:
+ *   - <html>, <head>, <body> — BaseLayout's responsibility
+ *   - OG / Twitter / canonical meta — passed up to BaseLayout as props
+ *   - WebSite + Person schema — BaseLayout always injects these
+ *
+ * NOTE: This layout does not import BlogPostLayout to avoid a cascade
+ * of nested slot wrappers. Both layouts share the same CSS files
+ * (post-layout.css, post-prose.css). If the prose body styles diverge,
+ * extract a shared PostBody.astro component rather than inheriting.
+ */
+
 import type { CollectionEntry } from "astro:content";
+import BaseLayout from "./BaseLayout.astro";
+import { getArticleSchema, getBreadcrumbSchema } from "../lib/schema";
+import { SITE } from "../config/site";
+
+// CSS: global tokens + reset loaded by BaseLayout.
+// post-layout.css:  breadcrumb nav + article header (shared with BlogPostLayout).
+// post-prose.css:   MDX body prose typography (shared with BlogPostLayout).
+// tech-article.css: proficiency badge + dependencies (this layout only).
+import "../styles/post-layout.css";
+import "../styles/post-prose.css";
+import "../styles/tech-article.css";
 
 interface Props {
-  // Narrowed to tech-article — proficiencyLevel and dependencies
-  // are guaranteed present (if set) without optional chaining gymnastics.
+  /**
+   * Narrowed to tech-article — proficiencyLevel and dependencies are
+   * accessible without optional chaining on fields the type guarantees.
+   */
   post: CollectionEntry<"blog"> & { data: { type: "tech-article" } };
+  /** null for standalone posts. Typed explicitly to prevent accidental undefined checks. */
   series: CollectionEntry<"series"> | null;
 }
 
 const { post, series } = Astro.props;
-const { title, description, publishedAt, updatedAt, proficiencyLevel, dependencies, readingTime } = post.data;
+const {
+  title,
+  description,
+  publishedAt,
+  updatedAt,
+  readingTime,
+  proficiencyLevel,
+  dependencies,
+  ogImage,
+  canonicalUrl: canonicalOverride,
+  noindex,
+} = post.data;
+
+// Canonical: use frontmatter override (future syndication) or derive from slug.
+const canonicalUrl = canonicalOverride ?? `${SITE.url}/blog/${post.id}`;
+
+// --- Schema ---
+// getArticleSchema branches on post.data.type internally — returns TechArticle
+// with proficiencyLevel and dependencies populated when set.
+const articleSchema = getArticleSchema(post, series, canonicalUrl);
+
+// Breadcrumb: homepage is prepended automatically by getBreadcrumbSchema.
+// Series posts get an extra crumb pointing to the series index page.
+const breadcrumbItems = [
+  { name: "Blog", path: "/blog" },
+  ...(series
+    ? [{ name: series.data.title, path: `/series/${series.data.slug}` }]
+    : []),
+  { name: title, path: `/blog/${post.id}` },
+];
+const breadcrumbSchema = getBreadcrumbSchema(breadcrumbItems);
+
+// Map proficiencyLevel enum to display label + CSS modifier class.
+// Kept in the layout rather than in a utility because it is presentation logic.
+const levelConfig = {
+  beginner: { label: "Beginner", modifier: "level--beginner" },
+  intermediate: { label: "Intermediate", modifier: "level--intermediate" },
+  expert: { label: "Expert", modifier: "level--expert" },
+} as const;
+
+const level = proficiencyLevel ? levelConfig[proficiencyLevel] : null;
 ---
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width" />
-    <meta name="generator" content={Astro.generator} />
-    <title>{title}</title>
-    <meta name="description" content={description} />
-  </head>
-  <body>
-    <nav>
-      <a href="/">Home</a>
-      {" / "}
+<BaseLayout
+  title={title}
+  description={description}
+  canonicalUrl={canonicalUrl}
+  ogImage={ogImage}
+  noindex={noindex}
+  ogType="article"
+  articlePublishedTime={publishedAt.toISOString()}
+  articleModifiedTime={(updatedAt ?? publishedAt).toISOString()}
+  schemaNodes={[articleSchema, breadcrumbSchema]}
+>
+  <div class="container-prose">
+    <nav class="post-breadcrumb" aria-label="Breadcrumb">
+      <a href="/">{SITE.name}</a>
+      <span class="post-breadcrumb-sep" aria-hidden="true">/</span>
       <a href="/blog">Blog</a>
-      {" / "}
-      {series && (
-        <>
-          <a href={`/series/${series.data.slug}`}>{series.data.title}</a>
-          {" / "}
-        </>
-      )}
-      <span>{title}</span>
+      {
+        series && (
+          <>
+            <span class="post-breadcrumb-sep" aria-hidden="true">
+              /
+            </span>
+            <a href={`/series/${series.data.slug}`}>{series.data.title}</a>
+          </>
+        )
+      }
+      <span class="post-breadcrumb-sep" aria-hidden="true">/</span>
+      <span aria-current="page">{title}</span>
     </nav>
 
-    <main>
-      <header>
-        <h1>{title}</h1>
-        <p>{description}</p>
-        <p>
+    <article class="post-article">
+      <header class="post-header">
+        <h1 class="post-title">{title}</h1>
+        <p class="post-description">{description}</p>
+
+        <div class="meta post-meta">
           <time datetime={publishedAt.toISOString()}>
-            {publishedAt.toLocaleDateString("en-CA")}
+            {
+              publishedAt.toLocaleDateString("en-CA", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              })
+            }
           </time>
-          {updatedAt && (
-            <>
-              {" · Updated "}
-              <time datetime={updatedAt.toISOString()}>
-                {updatedAt.toLocaleDateString("en-CA")}
-              </time>
-            </>
-          )}
-          {readingTime !== undefined && <span> · {readingTime} min read</span>}
-          {proficiencyLevel && <span> · {proficiencyLevel}</span>}
-        </p>
-        {dependencies && dependencies.length > 0 && (
-          <ul aria-label="Dependencies">
-            {dependencies.map((dep) => <li>{dep}</li>)}
-          </ul>
-        )}
+          {
+            updatedAt && (
+              <>
+                <span class="meta-sep">·</span>
+                <span>
+                  Updated{" "}
+                  <time datetime={updatedAt.toISOString()}>
+                    {updatedAt.toLocaleDateString("en-CA", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </time>
+                </span>
+              </>
+            )
+          }
+          {
+            readingTime !== undefined && (
+              <>
+                <span class="meta-sep">·</span>
+                <span>{readingTime} min read</span>
+              </>
+            )
+          }
+          {
+            level && (
+              <>
+                <span class="meta-sep">·</span>
+                <span class={`proficiency-badge ${level.modifier}`}>
+                  {level.label}
+                </span>
+              </>
+            )
+          }
+        </div>
+
+        {
+          dependencies && dependencies.length > 0 && (
+            <div class="dependencies" aria-label="Requirements">
+              <span class="dependencies-label">Requires</span>
+              <ul class="dependencies-list" role="list">
+                {dependencies.map((dep) => (
+                  <li class="tag">{dep}</li>
+                ))}
+              </ul>
+            </div>
+          )
+        }
       </header>
 
-      <article>
+      <div class="post-body">
         <slot />
-      </article>
-    </main>
-  </body>
-</html>
+      </div>
+    </article>
+  </div>
+</BaseLayout>

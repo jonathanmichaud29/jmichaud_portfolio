@@ -1,18 +1,38 @@
 ---
-// Prerender explicitly so this page is always static, regardless of whether
-// astro.config.ts uses output: "server" or output: "hybrid".
+/**
+ * /series/[seriesSlug].astro
+ *
+ * Series index page — one route per entry in the series collection.
+ * Lists all published posts in the series in part order, with a header
+ * showing the series title, description, and publication dates.
+ *
+ * Schema emitted:
+ *   - ItemList  — ordered list of parts; Google can render this in SERPs
+ *   - BreadcrumbList — site hierarchy signal
+ *   (WebSite + Person are always injected by BaseLayout)
+ *
+ * og:type is "website" here, not "article" — this is a collection index
+ * page, not a piece of authored content. No article:published_time.
+ */
+
 export const prerender = true;
 
 import { getCollection } from "astro:content";
 import type { CollectionEntry } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getItemListSchema, getBreadcrumbSchema } from "../../lib/schema";
 import { SITE } from "../../config/site";
+
+// CSS: global tokens + reset loaded by BaseLayout.
+// series.css: all series index page specific styles.
+import "../../styles/series.css";
 
 // ---------------------------------------------------------------------------
 // getStaticPaths
 //
-// Generates one route per series entry in the collection.
-// Each route receives its series metadata and its ordered, published posts
-// as props — no additional data fetching needed in the component.
+// One route per series. Each route receives the series metadata and its
+// ordered, published posts as props — no additional data fetching in the
+// component below.
 // ---------------------------------------------------------------------------
 export async function getStaticPaths() {
   const [allSeries, allPosts] = await Promise.all([
@@ -28,13 +48,13 @@ export async function getStaticPaths() {
 
     // Order by seriesPart ascending (pt1 first).
     // Posts without seriesPart sort to the front (treated as 0) — this is a
-    // content authoring error, not a valid state, but we degrade gracefully.
+    // content authoring error, not a valid state, but we degrade gracefully
+    // rather than throwing at build time.
     const orderedPosts = seriesPosts.sort(
       (a, b) => (a.data.seriesPart ?? 0) - (b.data.seriesPart ?? 0)
     );
 
     return {
-      // The dynamic segment: matches /series/docker-networking, etc.
       params: { seriesSlug: series.data.slug },
       props: { series, orderedPosts },
     };
@@ -42,7 +62,7 @@ export async function getStaticPaths() {
 }
 
 // ---------------------------------------------------------------------------
-// Component props — fully typed from getStaticPaths output
+// Props
 // ---------------------------------------------------------------------------
 interface Props {
   series: CollectionEntry<"series">;
@@ -50,74 +70,178 @@ interface Props {
 }
 
 const { series, orderedPosts } = Astro.props;
-const { title, description, publishedAt, updatedAt } = series.data;
+const { title, description, publishedAt, updatedAt, ogImage } = series.data;
+
+const canonicalUrl = `${SITE.url}/series/${series.data.slug}`;
+
+// --- Schema ---
+// ItemList: ordered series TOC — what Google can render in SERPs.
+// BreadcrumbList: site hierarchy signal.
+// Both are passed to BaseLayout via schemaNodes; WebSite + Person are
+// injected by BaseLayout automatically.
+const itemListSchema = getItemListSchema(series, orderedPosts);
+const breadcrumbSchema = getBreadcrumbSchema([
+  { name: "Blog", path: "/blog" },
+  { name: title, path: `/series/${series.data.slug}` },
+]);
 ---
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width" />
-    <meta name="generator" content={Astro.generator} />
-    <title>{title} | {SITE.name}</title>
-    <meta name="description" content={description} />
-  </head>
-  <body>
-    <nav>
-      <a href="/">Home</a>
-      {" / "}
+<BaseLayout
+  title={title}
+  description={description}
+  canonicalUrl={canonicalUrl}
+  ogImage={ogImage}
+  schemaNodes={[itemListSchema, breadcrumbSchema]}
+>
+  <div class="container-prose">
+    <!-- ---------------------------------------------------------------- -->
+    <!-- Breadcrumb                                                        -->
+    <!-- ---------------------------------------------------------------- -->
+    <nav class="series-breadcrumb" aria-label="Breadcrumb">
+      <a href="/">{SITE.name}</a>
+      <span class="series-breadcrumb-sep" aria-hidden="true">/</span>
       <a href="/blog">Blog</a>
-      {" / "}
-      <span>{title}</span>
+      <span class="series-breadcrumb-sep" aria-hidden="true">/</span>
+      <span aria-current="page">{title}</span>
     </nav>
 
-    <main>
-      <header>
-        <h1>{title}</h1>
-        <p>{description}</p>
-        <p>
-          <time datetime={publishedAt.toISOString()}>
-            Started {publishedAt.toLocaleDateString("en-CA")}
-          </time>
-          {
-            updatedAt > publishedAt && (
-              <>
-                {" · Updated "}
-                <time datetime={updatedAt.toISOString()}>
-                  {updatedAt.toLocaleDateString("en-CA")}
-                </time>
-              </>
-            )
-          }
-          {" · "}
+    <!-- ---------------------------------------------------------------- -->
+    <!-- Series header                                                     -->
+    <!-- ---------------------------------------------------------------- -->
+    <header class="series-header">
+      <div class="meta series-meta">
+        <span class="tag">Series</span>
+        <span class="meta-sep">·</span>
+        <span>
           {orderedPosts.length}
-          {orderedPosts.length === 1 ? " part" : " parts"}
-        </p>
-      </header>
-
-      <ol>
+          {orderedPosts.length === 1 ? "part" : "parts"}
+        </span>
         {
-          orderedPosts.map((post) => (
-            <li>
-              <article>
-                <a href={`/blog/${post.id}`}>
-                  {post.data.seriesPart !== undefined && (
-                    <span>Part {post.data.seriesPart} — </span>
-                  )}
-                  {post.data.title}
-                </a>
-                <p>{post.data.description}</p>
+          series.data.status === "active" && (
+            <>
+              <span class="meta-sep">·</span>
+              <span class="series-active-badge" aria-label="Series in progress">
+                <span class="series-active-dot" aria-hidden="true" />
+                Active
+              </span>
+            </>
+          )
+        }
+        {
+          series.data.repoUrl && (
+            <>
+              <span class="meta-sep">·</span>
+              <a
+                href={series.data.repoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="series-meta-link"
+              >
+                GitHub
+              </a>
+            </>
+          )
+        }
+        {
+          series.data.demoUrl && (
+            <>
+              <span class="meta-sep">·</span>
+              <a
+                href={series.data.demoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="series-meta-link"
+              >
+                Live demo
+              </a>
+            </>
+          )
+        }
+      </div>
+
+      <h1 class="series-title">{title}</h1>
+      <p class="series-description">{description}</p>
+
+      <div class="meta series-dates">
+        <span>
+          Started{" "}
+          <time datetime={publishedAt.toISOString()}>
+            {
+              publishedAt.toLocaleDateString("en-CA", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              })
+            }
+          </time>
+        </span>
+        {
+          updatedAt > publishedAt && (
+            <>
+              <span class="meta-sep">·</span>
+              <span>
+                Updated{" "}
+                <time datetime={updatedAt.toISOString()}>
+                  {updatedAt.toLocaleDateString("en-CA", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </time>
+              </span>
+            </>
+          )
+        }
+      </div>
+    </header>
+
+    <!-- ---------------------------------------------------------------- -->
+    <!-- Parts list                                                        -->
+    <!-- ---------------------------------------------------------------- -->
+    <ol class="series-parts" aria-label="Series parts">
+      {
+        orderedPosts.map((post) => (
+          <li class="series-part">
+            <article class="card series-part-card">
+              <div class="meta series-part-meta">
+                {post.data.seriesPart !== undefined && (
+                  <span class="series-part-number">
+                    Part {post.data.seriesPart}
+                  </span>
+                )}
+                <span class="meta-sep">·</span>
                 <time datetime={post.data.publishedAt.toISOString()}>
-                  {post.data.publishedAt.toLocaleDateString("en-CA")}
+                  {post.data.publishedAt.toLocaleDateString("en-CA", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
                 </time>
                 {post.data.readingTime !== undefined && (
-                  <span> · {post.data.readingTime} min read</span>
+                  <>
+                    <span class="meta-sep">·</span>
+                    <span>{post.data.readingTime} min read</span>
+                  </>
                 )}
-              </article>
-            </li>
-          ))
-        }
-      </ol>
-    </main>
-  </body>
-</html>
+              </div>
+
+              <h2 class="series-part-title">
+                <a href={`/blog/${post.id}`}>{post.data.title}</a>
+              </h2>
+
+              <p class="series-part-description">{post.data.description}</p>
+
+              {post.data.tags.length > 0 && (
+                <div class="series-part-tags" aria-label="Tags">
+                  {post.data.tags.slice(0, 4).map((tag) => (
+                    <span class="tag">{tag}</span>
+                  ))}
+                </div>
+              )}
+            </article>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</BaseLayout>

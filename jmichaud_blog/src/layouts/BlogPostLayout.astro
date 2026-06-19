@@ -1,63 +1,149 @@
 ---
+/**
+ * BlogPostLayout.astro
+ *
+ * Layout for blog-post typed entries (non-technical: career, process,
+ * opinion, retrospective). Delegates the full document shell — <head>
+ * meta, schema graph, header, footer — to BaseLayout.
+ *
+ * What this layout owns:
+ *   - BlogPosting + BreadcrumbList schema composition
+ *   - Article header (title, dates, reading time)
+ *   - Series nav breadcrumb when the post belongs to a series
+ *   - <slot> for MDX body content
+ *
+ * What this layout deliberately does NOT own:
+ *   - <html>, <head>, <body> — BaseLayout's responsibility
+ *   - OG / Twitter / canonical meta — passed up to BaseLayout as props
+ *   - WebSite + Person schema — BaseLayout always injects these
+ */
+
 import type { CollectionEntry } from "astro:content";
+import BaseLayout from "./BaseLayout.astro";
+import { getArticleSchema, getBreadcrumbSchema } from "../lib/schema";
+import { SITE } from "../config/site";
+
+// CSS: global tokens + reset loaded by BaseLayout.
+// post-layout.css: breadcrumb nav + article header.
+// post-prose.css:  MDX body prose typography.
+import "../styles/post-layout.css";
+import "../styles/post-prose.css";
 
 interface Props {
-  // Narrowed to blog-post — no proficiencyLevel or dependencies on this type.
+  /** Narrowed to blog-post — no proficiencyLevel or dependencies on this type. */
   post: CollectionEntry<"blog"> & { data: { type: "blog-post" } };
+  /** null for standalone posts. Typed explicitly to prevent accidental undefined checks. */
   series: CollectionEntry<"series"> | null;
 }
 
 const { post, series } = Astro.props;
-const { title, description, publishedAt, updatedAt, readingTime } = post.data;
+const {
+  title,
+  description,
+  publishedAt,
+  updatedAt,
+  readingTime,
+  ogImage,
+  canonicalUrl: canonicalOverride,
+  noindex,
+} = post.data;
+
+// Canonical: use frontmatter override (future syndication) or derive from slug.
+const canonicalUrl = canonicalOverride ?? `${SITE.url}/blog/${post.id}`;
+
+// --- Schema ---
+// Article schema branches on post.data.type internally — passes "blog-post"
+// here, so getArticleSchema returns a BlogPosting node.
+const articleSchema = getArticleSchema(post, series, canonicalUrl);
+
+// Breadcrumb: homepage is prepended automatically by getBreadcrumbSchema.
+// Series posts get an extra crumb pointing to the series index page.
+const breadcrumbItems = [
+  { name: "Blog", path: "/blog" },
+  ...(series
+    ? [{ name: series.data.title, path: `/series/${series.data.slug}` }]
+    : []),
+  { name: title, path: `/blog/${post.id}` },
+];
+const breadcrumbSchema = getBreadcrumbSchema(breadcrumbItems);
 ---
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width" />
-    <meta name="generator" content={Astro.generator} />
-    <title>{title}</title>
-    <meta name="description" content={description} />
-  </head>
-  <body>
-    <nav>
-      <a href="/">Home</a>
-      {" / "}
+<BaseLayout
+  title={title}
+  description={description}
+  canonicalUrl={canonicalUrl}
+  ogImage={ogImage}
+  noindex={noindex}
+  ogType="article"
+  articlePublishedTime={publishedAt.toISOString()}
+  articleModifiedTime={(updatedAt ?? publishedAt).toISOString()}
+  schemaNodes={[articleSchema, breadcrumbSchema]}
+>
+  <div class="container-prose">
+    <nav class="post-breadcrumb" aria-label="Breadcrumb">
+      <a href="/">{SITE.name}</a>
+      <span class="post-breadcrumb-sep" aria-hidden="true">/</span>
       <a href="/blog">Blog</a>
-      {" / "}
-      {series && (
-        <>
-          <a href={`/series/${series.data.slug}`}>{series.data.title}</a>
-          {" / "}
-        </>
-      )}
-      <span>{title}</span>
+      {
+        series && (
+          <>
+            <span class="post-breadcrumb-sep" aria-hidden="true">
+              /
+            </span>
+            <a href={`/series/${series.data.slug}`}>{series.data.title}</a>
+          </>
+        )
+      }
+      <span class="post-breadcrumb-sep" aria-hidden="true">/</span>
+      <span aria-current="page">{title}</span>
     </nav>
 
-    <main>
-      <header>
-        <h1>{title}</h1>
-        <p>{description}</p>
-        <p>
+    <article class="post-article">
+      <header class="post-header">
+        <h1 class="post-title">{title}</h1>
+        <p class="post-description">{description}</p>
+
+        <div class="meta post-meta">
           <time datetime={publishedAt.toISOString()}>
-            {publishedAt.toLocaleDateString("en-CA")}
+            {
+              publishedAt.toLocaleDateString("en-CA", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              })
+            }
           </time>
-          {updatedAt && (
-            <>
-              {" · Updated "}
-              <time datetime={updatedAt.toISOString()}>
-                {updatedAt.toLocaleDateString("en-CA")}
-              </time>
-            </>
-          )}
-          {readingTime !== undefined && <span> · {readingTime} min read</span>}
-        </p>
+          {
+            updatedAt && (
+              <>
+                <span class="meta-sep">·</span>
+                <span>
+                  Updated{" "}
+                  <time datetime={updatedAt.toISOString()}>
+                    {updatedAt.toLocaleDateString("en-CA", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </time>
+                </span>
+              </>
+            )
+          }
+          {
+            readingTime !== undefined && (
+              <>
+                <span class="meta-sep">·</span>
+                <span>{readingTime} min read</span>
+              </>
+            )
+          }
+        </div>
       </header>
 
-      <article>
+      <div class="post-body">
         <slot />
-      </article>
-    </main>
-  </body>
-</html>
+      </div>
+    </article>
+  </div>
+</BaseLayout>

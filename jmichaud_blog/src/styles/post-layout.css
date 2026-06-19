@@ -1,0 +1,78 @@
+/* ============================================================
+   post-layout.css
+   Breadcrumb nav + article header shared by both post layouts.
+
+   Consumed by: BlogPostLayout.astro, TechArticleLayout.astro
+   Depends on:  global.css (tokens must be loaded first via BaseLayout)
+
+   These classnames are shared across both layouts. TechArticleLayout
+   adds its own layer via tech-article.css for the proficiency badge
+   and dependencies — post-layout.css does not know about those.
+   ============================================================ */
+
+/* ------------------------------------------------------------------ */
+/* Breadcrumb nav                                                       */
+/* ------------------------------------------------------------------ */
+.post-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  padding: var(--space-8) 0 var(--space-6);
+}
+
+.post-breadcrumb a {
+  color: var(--text-muted);
+  transition: color 0.15s ease;
+}
+
+.post-breadcrumb a:hover {
+  color: var(--accent);
+}
+
+.post-breadcrumb-sep {
+  color: var(--bg-border);
+}
+
+/* Last crumb — current page, not a link */
+.post-breadcrumb [aria-current="page"] {
+  color: var(--text-primary);
+  /* Truncate long titles on narrow viewports */
+  max-width: 32ch;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ------------------------------------------------------------------ */
+/* Article header                                                       */
+/* ------------------------------------------------------------------ */
+.post-header {
+  padding-bottom: var(--space-8);
+  border-bottom: 1px solid var(--bg-border);
+  margin-bottom: var(--space-8);
+}
+
+.post-title {
+  font-size: clamp(var(--text-2xl), 4vw, var(--text-4xl));
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin-bottom: var(--space-4);
+}
+
+.post-description {
+  font-size: var(--text-lg);
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: var(--space-6);
+  max-width: 60ch;
+}
+
+/*
+  .post-meta inherits layout from .meta in utilities.css.
+  No additional rules needed — the empty block is removed.
+*/
