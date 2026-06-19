@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://www.jmichaud.ca/series.schema.json",
+  "title": "Series index",
+  "description": "Array of series entries. Each entry is a project/series with ordered blog post parts.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "id",
+      "title",
+      "slug",
+      "description",
+      "publishedAt",
+      "updatedAt",
+      "order",
+      "status"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Unique identifier. Must match the filename convention and be referenced by blog post frontmatter via series: field.",
+        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+      },
+      "title": {
+        "type": "string",
+        "description": "Human-readable series title. Used in nav breadcrumbs, series index page, and JSON-LD ItemList name.",
+        "minLength": 1
+      },
+      "slug": {
+        "type": "string",
+        "description": "URL segment for /series/[slug]. Must be URL-safe. Changing this after publication is a breaking change.",
+        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+      },
+      "description": {
+        "type": "string",
+        "description": "Short description of the series. Used in meta tags, og:description, and series index page.",
+        "minLength": 1
+      },
+      "publishedAt": {
+        "type": "string",
+        "format": "date",
+        "description": "ISO 8601 date when the first part was published. Set once — never updated."
+      },
+      "updatedAt": {
+        "type": "string",
+        "format": "date",
+        "description": "ISO 8601 date bumped manually each time a new part is published. Used as the sort key in feed queries."
+      },
+      "order": {
+        "type": "array",
+        "description": "Slugs of published parts in reading order (pt1 first). Never list a slug without a corresponding .mdx file.",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        }
+      },
+      "status": {
+        "type": "string",
+        "enum": ["active", "completed"],
+        "description": "active: series is in progress. completed: no further parts planned."
+      },
+      "repoUrl": {
+        "type": "string",
+        "format": "uri",
+        "description": "Optional link to the source repository associated with this series."
+      },
+      "demoUrl": {
+        "type": "string",
+        "format": "uri",
+        "description": "Optional link to a live demo associated with this series."
+      },
+      "ogImage": {
+        "type": "string",
+        "description": "Optional path to an OG image override for this series. Relative to /public. Falls back to the latest post ogImage, then SITE.defaultOgImage."
+      }
+    }
+  }
+}

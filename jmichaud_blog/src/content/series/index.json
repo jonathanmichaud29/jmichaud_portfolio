@@ -1,5 +1,6 @@
 [
   {
+    "$schema": "./series.schema.json",
     "id": "docker-networking",
     "title": "Docker Networking Deep Dive",
     "slug": "docker-networking",
@@ -9,6 +10,9 @@
     "order": [
       "docker-networking-pt1",
       "docker-networking-pt2"
-    ]
+    ],
+    "status" :  "active",
+    "repoUrl": "https://www.github.com",
+    "demoUrl" : "https://www.google.ca"
   }
 ]

@@ -33,9 +33,6 @@ const blog = defineCollection({
           )
           .default([]),
         readingTime: z.number().int().positive().optional(),
-        status: z.enum(["active", "completed"]),
-        repoUrl: z.string().optional(),
-        demoUrl: z.string().optional(),
       })
       .refine(
         (data) => !(data.seriesPart !== undefined && data.series === undefined),
@@ -68,9 +65,6 @@ const blog = defineCollection({
           )
           .default([]),
         readingTime: z.number().int().positive().optional(),
-        status: z.enum(["active", "completed"]),
-        repoUrl: z.string().optional(),
-        demoUrl: z.string().optional(),
       })
       .refine(
         (data) => !(data.seriesPart !== undefined && data.series === undefined),
@@ -108,6 +102,9 @@ const series = defineCollection({
     // - min(1): a series with zero published parts is a data error and will
     //   fail the build explicitly rather than silently producing a broken card.
     order: z.array(z.string()).min(1),
+    status: z.enum(["active", "completed"]),
+    repoUrl: z.url().optional(),
+    demoUrl: z.url().optional(),
   }),
 });
 
