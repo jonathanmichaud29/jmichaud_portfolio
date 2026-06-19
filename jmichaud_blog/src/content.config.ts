@@ -33,6 +33,9 @@ const blog = defineCollection({
           )
           .default([]),
         readingTime: z.number().int().positive().optional(),
+        status: z.enum(["active", "completed"]),
+        repoUrl: z.string().optional(),
+        demoUrl: z.string().optional(),
       })
       .refine(
         (data) => !(data.seriesPart !== undefined && data.series === undefined),
@@ -65,6 +68,9 @@ const blog = defineCollection({
           )
           .default([]),
         readingTime: z.number().int().positive().optional(),
+        status: z.enum(["active", "completed"]),
+        repoUrl: z.string().optional(),
+        demoUrl: z.string().optional(),
       })
       .refine(
         (data) => !(data.seriesPart !== undefined && data.series === undefined),
