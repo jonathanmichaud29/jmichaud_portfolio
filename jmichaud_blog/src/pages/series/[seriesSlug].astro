@@ -2,17 +2,8 @@
 /**
  * /series/[seriesSlug].astro
  *
- * Series index page — one route per entry in the series collection.
- * Lists all published posts in the series in part order, with a header
- * showing the series title, description, and publication dates.
- *
- * Schema emitted:
- *   - ItemList  — ordered list of parts; Google can render this in SERPs
- *   - BreadcrumbList — site hierarchy signal
- *   (WebSite + Person are always injected by BaseLayout)
- *
- * og:type is "website" here, not "article" — this is a collection index
- * page, not a piece of authored content. No article:published_time.
+ * CSS migration: series.css has been dissolved into Tailwind utility
+ * classes inline on each element. No external stylesheet imports remain.
  */
 
 export const prerender = true;
@@ -23,17 +14,6 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getItemListSchema, getBreadcrumbSchema } from "../../lib/schema";
 import { SITE } from "../../config/site";
 
-// CSS: global tokens + reset loaded by BaseLayout.
-// series.css: all series index page specific styles.
-import "../../styles/series.css";
-
-// ---------------------------------------------------------------------------
-// getStaticPaths
-//
-// One route per series. Each route receives the series metadata and its
-// ordered, published posts as props — no additional data fetching in the
-// component below.
-// ---------------------------------------------------------------------------
 export async function getStaticPaths() {
   const [allSeries, allPosts] = await Promise.all([
     getCollection("series"),
@@ -41,15 +21,10 @@ export async function getStaticPaths() {
   ]);
 
   return allSeries.map((series) => {
-    // Collect all published posts that reference this series.
     const seriesPosts = allPosts.filter(
       (post) => post.data.series?.id === series.id
     );
 
-    // Order by seriesPart ascending (pt1 first).
-    // Posts without seriesPart sort to the front (treated as 0) — this is a
-    // content authoring error, not a valid state, but we degrade gracefully
-    // rather than throwing at build time.
     const orderedPosts = seriesPosts.sort(
       (a, b) => (a.data.seriesPart ?? 0) - (b.data.seriesPart ?? 0)
     );
@@ -61,9 +36,6 @@ export async function getStaticPaths() {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
 interface Props {
   series: CollectionEntry<"series">;
   orderedPosts: CollectionEntry<"blog">[];
@@ -74,11 +46,6 @@ const { title, description, publishedAt, updatedAt, ogImage } = series.data;
 
 const canonicalUrl = `${SITE.url}/series/${series.data.slug}`;
 
-// --- Schema ---
-// ItemList: ordered series TOC — what Google can render in SERPs.
-// BreadcrumbList: site hierarchy signal.
-// Both are passed to BaseLayout via schemaNodes; WebSite + Person are
-// injected by BaseLayout automatically.
 const itemListSchema = getItemListSchema(series, orderedPosts);
 const breadcrumbSchema = getBreadcrumbSchema([
   { name: "Blog", path: "/blog" },
@@ -93,155 +60,164 @@ const breadcrumbSchema = getBreadcrumbSchema([
   ogImage={ogImage}
   schemaNodes={[itemListSchema, breadcrumbSchema]}
 >
-  <div class="container-prose">
-    <!-- ---------------------------------------------------------------- -->
-    <!-- Breadcrumb                                                        -->
-    <!-- ---------------------------------------------------------------- -->
-    <nav class="series-breadcrumb" aria-label="Breadcrumb">
-      <a href="/">{SITE.name}</a>
-      <span class="series-breadcrumb-sep" aria-hidden="true">/</span>
-      <a href="/blog">Blog</a>
-      <span class="series-breadcrumb-sep" aria-hidden="true">/</span>
-      <span aria-current="page">{title}</span>
+  <div class="max-w-[var(--width-prose)] mx-auto px-6">
+
+    <!-- Breadcrumb -->
+    <nav
+      class="flex items-center flex-wrap gap-2 font-mono text-xs text-text-muted py-8 pb-6"
+      aria-label="Breadcrumb"
+    >
+      <a href="/" class="text-text-muted hover:text-accent transition-colors duration-150">{SITE.name}</a>
+      <span class="text-bg-border" aria-hidden="true">/</span>
+      <a href="/blog" class="text-text-muted hover:text-accent transition-colors duration-150">Blog</a>
+      <span class="text-bg-border" aria-hidden="true">/</span>
+      <span
+        aria-current="page"
+        class="text-text-primary max-w-[32ch] whitespace-nowrap overflow-hidden text-ellipsis"
+      >{title}</span>
     </nav>
 
-    <!-- ---------------------------------------------------------------- -->
-    <!-- Series header                                                     -->
-    <!-- ---------------------------------------------------------------- -->
-    <header class="series-header">
-      <div class="meta series-meta">
-        <span class="tag">Series</span>
-        <span class="meta-sep">·</span>
+    <!-- Series header -->
+    <header class="pb-8 border-b border-bg-border mb-8">
+
+      <!-- Meta row -->
+      <div class="flex items-center flex-wrap gap-3 text-xs text-text-muted font-mono mb-4">
+        <span class="font-mono text-xs text-accent bg-[rgba(63,185,80,0.1)] border border-[rgba(63,185,80,0.2)] rounded px-2 py-0.5 whitespace-nowrap">
+          Series
+        </span>
+        <span class="text-bg-border">·</span>
         <span>
           {orderedPosts.length}
           {orderedPosts.length === 1 ? "part" : "parts"}
         </span>
-        {
-          series.data.status === "active" && (
-            <>
-              <span class="meta-sep">·</span>
-              <span class="series-active-badge" aria-label="Series in progress">
-                <span class="series-active-dot" aria-hidden="true" />
-                Active
-              </span>
-            </>
-          )
-        }
-        {
-          series.data.repoUrl && (
-            <>
-              <span class="meta-sep">·</span>
-              <a
-                href={series.data.repoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="series-meta-link"
-              >
-                GitHub
-              </a>
-            </>
-          )
-        }
-        {
-          series.data.demoUrl && (
-            <>
-              <span class="meta-sep">·</span>
-              <a
-                href={series.data.demoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="series-meta-link"
-              >
-                Live demo
-              </a>
-            </>
-          )
-        }
+        {series.data.status === "active" && (
+          <>
+            <span class="text-bg-border">·</span>
+            <span class="inline-flex items-center gap-1 text-accent font-mono text-xs" aria-label="Series in progress">
+              <span
+                class="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0"
+                style="animation: series-pulse 2s ease-in-out infinite;"
+                aria-hidden="true"
+              />
+              Active
+            </span>
+          </>
+        )}
+        {series.data.repoUrl && (
+          <>
+            <span class="text-bg-border">·</span>
+            <a
+              href={series.data.repoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-text-muted hover:text-accent underline underline-offset-[3px] transition-colors duration-150"
+            >GitHub</a>
+          </>
+        )}
+        {series.data.demoUrl && (
+          <>
+            <span class="text-bg-border">·</span>
+            <a
+              href={series.data.demoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-text-muted hover:text-accent underline underline-offset-[3px] transition-colors duration-150"
+            >Live demo</a>
+          </>
+        )}
       </div>
 
-      <h1 class="series-title">{title}</h1>
-      <p class="series-description">{description}</p>
+      <h1 class="text-[clamp(1.5rem,4vw,2.25rem)] font-semibold leading-[1.15] tracking-[-0.02em] mb-4">
+        {title}
+      </h1>
+      <p class="text-lg text-text-muted leading-[1.6] max-w-[60ch] mb-6">
+        {description}
+      </p>
 
-      <div class="meta series-dates">
+      <!-- Dates -->
+      <div class="flex items-center flex-wrap gap-3 text-xs text-text-muted font-mono">
         <span>
           Started{" "}
           <time datetime={publishedAt.toISOString()}>
-            {
-              publishedAt.toLocaleDateString("en-CA", {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-              })
-            }
+            {publishedAt.toLocaleDateString("en-CA", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            })}
           </time>
         </span>
-        {
-          updatedAt > publishedAt && (
-            <>
-              <span class="meta-sep">·</span>
-              <span>
-                Updated{" "}
-                <time datetime={updatedAt.toISOString()}>
-                  {updatedAt.toLocaleDateString("en-CA", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </time>
-              </span>
-            </>
-          )
-        }
+        {updatedAt > publishedAt && (
+          <>
+            <span class="text-bg-border">·</span>
+            <span>
+              Updated{" "}
+              <time datetime={updatedAt.toISOString()}>
+                {updatedAt.toLocaleDateString("en-CA", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })}
+              </time>
+            </span>
+          </>
+        )}
       </div>
     </header>
 
-    <!-- ---------------------------------------------------------------- -->
-    <!-- Parts list                                                        -->
-    <!-- ---------------------------------------------------------------- -->
-    <ol class="series-parts" aria-label="Series parts">
-      {
-        orderedPosts.map((post) => (
-          <li class="series-part">
-            <article class="card series-part-card">
-              <div class="meta series-part-meta">
-                {post.data.seriesPart !== undefined && (
-                  <span class="series-part-number">
-                    Part {post.data.seriesPart}
-                  </span>
-                )}
-                <span class="meta-sep">·</span>
-                <time datetime={post.data.publishedAt.toISOString()}>
-                  {post.data.publishedAt.toLocaleDateString("en-CA", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </time>
-                {post.data.readingTime !== undefined && (
-                  <>
-                    <span class="meta-sep">·</span>
-                    <span>{post.data.readingTime} min read</span>
-                  </>
-                )}
-              </div>
+    <!-- Parts list -->
+    <ol class="flex flex-col gap-4 pb-24" aria-label="Series parts">
+      {orderedPosts.map((post) => (
+        <li>
+          <article class="bg-bg-surface border border-bg-border rounded-lg p-6 flex flex-col gap-3 hover:border-accent transition-colors duration-150">
 
-              <h2 class="series-part-title">
-                <a href={`/blog/${post.id}`}>{post.data.title}</a>
-              </h2>
-
-              <p class="series-part-description">{post.data.description}</p>
-
-              {post.data.tags.length > 0 && (
-                <div class="series-part-tags" aria-label="Tags">
-                  {post.data.tags.slice(0, 4).map((tag) => (
-                    <span class="tag">{tag}</span>
-                  ))}
-                </div>
+            <!-- Part meta -->
+            <div class="flex items-center flex-wrap gap-3 text-xs text-text-muted font-mono">
+              {post.data.seriesPart !== undefined && (
+                <span class="font-mono text-xs text-accent font-medium">
+                  Part {post.data.seriesPart}
+                </span>
               )}
-            </article>
-          </li>
-        ))
-      }
+              <span class="text-bg-border">·</span>
+              <time datetime={post.data.publishedAt.toISOString()}>
+                {post.data.publishedAt.toLocaleDateString("en-CA", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })}
+              </time>
+              {post.data.readingTime !== undefined && (
+                <>
+                  <span class="text-bg-border">·</span>
+                  <span>{post.data.readingTime} min read</span>
+                </>
+              )}
+            </div>
+
+            <h2 class="text-xl font-semibold leading-[1.3]">
+              <a
+                href={`/blog/${post.id}`}
+                class="text-text-primary hover:text-accent transition-colors duration-150"
+              >{post.data.title}</a>
+            </h2>
+
+            <p class="text-sm text-text-muted leading-[1.6]">
+              {post.data.description}
+            </p>
+
+            {post.data.tags.length > 0 && (
+              <div class="flex flex-wrap gap-2 mt-1" aria-label="Tags">
+                {post.data.tags.slice(0, 4).map((tag) => (
+                  <span class="font-mono text-xs text-accent bg-[rgba(63,185,80,0.1)] border border-[rgba(63,185,80,0.2)] rounded px-2 py-0.5 whitespace-nowrap">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+
+          </article>
+        </li>
+      ))}
     </ol>
+
   </div>
 </BaseLayout>

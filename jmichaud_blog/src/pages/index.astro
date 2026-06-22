@@ -1,25 +1,24 @@
 ---
+/**
+ * index.astro — Homepage
+ *
+ * CSS migration: utilities.css dissolved into Tailwind utility classes
+ * inline on each element. Duplicate .btn-primary / .btn-secondary
+ * definitions removed. No <style> block remains.
+ */
+
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { getCollection } from "astro:content";
 import type { CollectionEntry } from "astro:content";
 import { SITE } from "../config/site";
 import { getLatestFeedItems } from "../lib/content/queries";
 
-// ---------------------------------------------------------------------------
-// Data fetching
-// ---------------------------------------------------------------------------
-
-// Active series — the "Currently Working On" block.
-// Queries for series with status: "active", sorted by updatedAt desc.
-// Shows the single most recently active series (one focused card).
 const allSeries = await getCollection("series");
 const activeSeries = allSeries
   .filter((s) => s.data.status === "active")
   .sort((a, b) => b.data.updatedAt.getTime() - a.data.updatedAt.getTime())
   .at(0) ?? null;
 
-// If there's an active series, find the latest published post in it
-// to give the "Currently Working On" card a direct read link.
 let activeSeriesLatestPost: CollectionEntry<"blog"> | null = null;
 if (activeSeries) {
   const seriesPosts = await getCollection(
@@ -31,14 +30,8 @@ if (activeSeries) {
   ).at(0) ?? null;
 }
 
-// Latest 3 feed items for the blog teaser section
 const latestPosts = await getLatestFeedItems(3);
 
-// ---------------------------------------------------------------------------
-// Tech categories — hardcoded, not content-driven.
-// These represent your actual expertise grouped by domain.
-// Update directly in this file as your stack evolves.
-// ---------------------------------------------------------------------------
 const techCategories = [
   {
     label: "Frontend",
@@ -67,88 +60,116 @@ const techCategories = [
   <!-- -------------------------------------------------------------------- -->
   <!-- Hero                                                                   -->
   <!-- -------------------------------------------------------------------- -->
-  <section class="hero section">
-    <div class="container-prose">
-      <p class="hero-eyebrow">Full-Stack Developer</p>
-      <h1 class="hero-name">{SITE.name}</h1>
-      <p class="hero-description">
+  <section class="py-24 section">
+    <div class="max-w-[var(--width-prose)] mx-auto px-6">
+      <p class="font-mono text-xs text-accent uppercase tracking-[0.1em] mb-4">
+        Full-Stack Developer
+      </p>
+      <h1 class="text-[clamp(1.875rem,5vw,3.5rem)] font-semibold leading-[1.1] tracking-[-0.02em] mb-6 text-text-primary">
+        {SITE.name}
+      </h1>
+      <p class="text-lg text-text-muted max-w-[52ch] leading-[1.65] mb-8">
         I build complete systems — from infrastructure to interface.
         Currently available for permanent roles where ownership and craft matter.
       </p>
-      <div class="hero-actions">
-        <a href="/about" class="btn-primary">About me</a>
-        <a href="/blog" class="btn-secondary">Read the blog</a>
+      <div class="flex gap-4 flex-wrap">
+        <a
+          href="/about"
+          class="inline-flex items-center bg-accent text-bg px-6 py-3 rounded-md text-sm font-semibold hover:bg-accent-dim active:scale-[0.98] transition-[background-color,transform] duration-150"
+        >
+          About me
+        </a>
+        <a
+          href="/blog"
+          class="inline-flex items-center border border-bg-border text-text-primary px-6 py-3 rounded-md text-sm font-medium hover:border-accent hover:text-accent transition-[border-color,color] duration-150"
+        >
+          Read the blog
+        </a>
       </div>
     </div>
   </section>
 
   <!-- -------------------------------------------------------------------- -->
   <!-- Currently Working On                                                   -->
-  <!-- Only renders when there is an active series.                          -->
   <!-- -------------------------------------------------------------------- -->
   {activeSeries && (
-    <section class="section currently-working" aria-labelledby="working-heading">
-      <div class="container-wide">
-        <p class="section-eyebrow">Currently working on</p>
-        <div class="active-series-card card">
-          <div class="active-series-inner">
-            <div class="active-series-content">
-              <div class="active-series-meta meta">
-                <span class="tag">Series</span>
-                <span class="meta-sep">·</span>
-                <span>{activeSeries.data.order.length} {activeSeries.data.order.length === 1 ? "part" : "parts"} published</span>
+    <section class="section" aria-labelledby="working-heading">
+      <div class="max-w-[var(--width-wide)] mx-auto px-6">
+        <p class="font-mono text-xs text-accent uppercase tracking-[0.1em] mb-0">
+          Currently working on
+        </p>
+        <div class="relative bg-bg-surface border border-bg-border rounded-lg p-6 hover:border-accent transition-colors duration-150 overflow-hidden">
+
+          <div class="flex items-start justify-between gap-8 flex-wrap">
+            <div class="flex-1 min-w-0">
+              <!-- Meta -->
+              <div class="flex items-center flex-wrap gap-3 text-xs text-text-muted font-mono mb-3">
+                <span class="font-mono text-xs text-accent bg-[rgba(63,185,80,0.1)] border border-[rgba(63,185,80,0.2)] rounded px-2 py-0.5 whitespace-nowrap">
+                  Series
+                </span>
+                <span class="text-bg-border">·</span>
+                <span>
+                  {activeSeries.data.order.length}{" "}
+                  {activeSeries.data.order.length === 1 ? "part" : "parts"} published
+                </span>
                 {activeSeries.data.demoUrl && (
                   <>
-                    <span class="meta-sep">·</span>
+                    <span class="text-bg-border">·</span>
                     <a
                       href={activeSeries.data.demoUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      class="meta-link"
-                    >
-                      Live demo
-                    </a>
+                      class="text-text-muted underline underline-offset-[3px] hover:text-accent transition-colors duration-150"
+                    >Live demo</a>
                   </>
                 )}
                 {activeSeries.data.repoUrl && (
                   <>
-                    <span class="meta-sep">·</span>
+                    <span class="text-bg-border">·</span>
                     <a
                       href={activeSeries.data.repoUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      class="meta-link"
-                    >
-                      GitHub
-                    </a>
+                      class="text-text-muted underline underline-offset-[3px] hover:text-accent transition-colors duration-150"
+                    >GitHub</a>
                   </>
                 )}
               </div>
-              <h2 class="active-series-title">{activeSeries.data.title}</h2>
-              <p class="active-series-description">{activeSeries.data.description}</p>
+
+              <h2 class="text-xl font-semibold mb-3">{activeSeries.data.title}</h2>
+              <p class="text-base text-text-muted leading-[1.6] max-w-[60ch]">
+                {activeSeries.data.description}
+              </p>
             </div>
-            <div class="active-series-actions">
+
+            <!-- Actions -->
+            <div class="flex flex-col gap-3 flex-shrink-0 self-center">
               <a
                 href={`/series/${activeSeries.data.slug}`}
-                class="btn-secondary"
+                class="inline-flex items-center border border-bg-border text-text-primary px-6 py-3 rounded-md text-sm font-medium hover:border-accent hover:text-accent transition-[border-color,color] duration-150"
               >
                 View series
               </a>
               {activeSeriesLatestPost && (
                 <a
                   href={`/blog/${activeSeriesLatestPost.id}`}
-                  class="btn-primary"
+                  class="inline-flex items-center bg-accent text-bg px-6 py-3 rounded-md text-sm font-semibold hover:bg-accent-dim active:scale-[0.98] transition-[background-color,transform] duration-150"
                 >
                   Read latest part
                 </a>
               )}
             </div>
           </div>
+
           <!-- Active pulse indicator -->
-          <div class="active-indicator" aria-hidden="true">
-            <span class="active-dot"></span>
-            <span class="active-label">Active</span>
+          <div class="absolute top-4 right-4 flex items-center gap-2" aria-hidden="true">
+            <span
+              class="w-2 h-2 rounded-full bg-accent"
+              style="animation: pulse 2s ease-in-out infinite;"
+            />
+            <span class="font-mono text-xs text-accent uppercase tracking-[0.08em]">Active</span>
           </div>
+
         </div>
       </div>
     </section>
@@ -157,17 +178,21 @@ const techCategories = [
   <!-- -------------------------------------------------------------------- -->
   <!-- Tech stack                                                             -->
   <!-- -------------------------------------------------------------------- -->
-  <section class="section tech-section" aria-labelledby="tech-heading">
-    <div class="container-wide">
-      <p class="section-eyebrow">Technologies</p>
-      <h2 id="tech-heading" class="section-title">What I work with</h2>
-      <div class="tech-grid">
+  <section class="section border-t border-bg-border" aria-labelledby="tech-heading">
+    <div class="max-w-[var(--width-wide)] mx-auto px-6">
+      <p class="font-mono text-xs text-accent uppercase tracking-[0.1em] mb-2">Technologies</p>
+      <h2 id="tech-heading" class="text-2xl font-semibold mb-8">What I work with</h2>
+      <div class="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-8">
         {techCategories.map((cat) => (
-          <div class="tech-category">
-            <h3 class="tech-category-label">{cat.label}</h3>
-            <ul class="tech-items" role="list">
+          <div>
+            <h3 class="font-mono text-xs text-text-muted uppercase tracking-[0.08em] mb-4 font-medium">
+              {cat.label}
+            </h3>
+            <ul class="flex flex-col gap-2" role="list">
               {cat.items.map((item) => (
-                <li class="tech-item">{item}</li>
+                <li class="text-sm text-text-primary py-2 border-b border-bg-border flex items-center gap-2 before:content-['▹'] before:text-accent before:font-mono before:text-xs before:flex-shrink-0">
+                  {item}
+                </li>
               ))}
             </ul>
           </div>
@@ -180,28 +205,38 @@ const techCategories = [
   <!-- Latest from the blog                                                   -->
   <!-- -------------------------------------------------------------------- -->
   {latestPosts.length > 0 && (
-    <section class="section blog-teaser" aria-labelledby="blog-heading">
-      <div class="container-wide">
-        <div class="section-header-row">
+    <section class="section border-t border-bg-border" aria-labelledby="blog-heading">
+      <div class="max-w-[var(--width-wide)] mx-auto px-6">
+        <div class="flex items-end justify-between mb-8 gap-4">
           <div>
-            <p class="section-eyebrow">Writing</p>
-            <h2 id="blog-heading" class="section-title">Latest posts</h2>
+            <p class="font-mono text-xs text-accent uppercase tracking-[0.1em] mb-2">Writing</p>
+            <h2 id="blog-heading" class="text-2xl font-semibold">Latest posts</h2>
           </div>
-          <a href="/blog" class="view-all-link" aria-label="View all blog posts">
+          <a
+            href="/blog"
+            class="font-mono text-sm text-text-muted whitespace-nowrap hover:text-accent transition-colors duration-150 pb-0.5"
+            aria-label="View all blog posts"
+          >
             All posts →
           </a>
         </div>
 
-        <div class="post-grid">
+        <div class="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-6">
           {latestPosts.map((item) => (
-            <article class="card post-card">
-              <div class="post-card-meta meta">
+            <article class="bg-bg-surface border border-bg-border rounded-lg p-6 flex flex-col gap-3 hover:border-accent transition-colors duration-150">
+
+              <!-- Meta -->
+              <div class="flex items-center flex-wrap gap-3 text-xs text-text-muted font-mono">
                 {item.kind === "series" ? (
-                  <span class="tag">Series · {item.partCount} {item.partCount === 1 ? "part" : "parts"}</span>
+                  <span class="font-mono text-xs text-accent bg-[rgba(63,185,80,0.1)] border border-[rgba(63,185,80,0.2)] rounded px-2 py-0.5 whitespace-nowrap">
+                    Series · {item.partCount} {item.partCount === 1 ? "part" : "parts"}
+                  </span>
                 ) : (
-                  <span class="tag">Post</span>
+                  <span class="font-mono text-xs text-accent bg-[rgba(63,185,80,0.1)] border border-[rgba(63,185,80,0.2)] rounded px-2 py-0.5 whitespace-nowrap">
+                    Post
+                  </span>
                 )}
-                <span class="meta-sep">·</span>
+                <span class="text-bg-border">·</span>
                 <time datetime={item.publishedAt.toISOString()}>
                   {item.publishedAt.toLocaleDateString("en-CA", {
                     year: "numeric",
@@ -211,22 +246,33 @@ const techCategories = [
                 </time>
                 {item.kind === "standalone" && item.post.data.readingTime && (
                   <>
-                    <span class="meta-sep">·</span>
+                    <span class="text-bg-border">·</span>
                     <span>{item.post.data.readingTime} min read</span>
                   </>
                 )}
               </div>
-              <h3 class="post-card-title">
-                <a href={item.href}>{item.title}</a>
+
+              <h3 class="text-lg font-semibold leading-[1.3]">
+                <a
+                  href={item.href}
+                  class="text-text-primary hover:text-accent transition-colors duration-150"
+                >{item.title}</a>
               </h3>
-              <p class="post-card-description">{item.description}</p>
+
+              <p class="text-sm text-text-muted leading-[1.6] flex-1">
+                {item.description}
+              </p>
+
               {item.kind === "standalone" && item.post.data.tags.length > 0 && (
-                <div class="post-card-tags" aria-label="Tags">
+                <div class="flex gap-2 flex-wrap mt-auto pt-2" aria-label="Tags">
                   {item.post.data.tags.slice(0, 3).map((tag) => (
-                    <span class="tag">{tag}</span>
+                    <span class="font-mono text-xs text-accent bg-[rgba(63,185,80,0.1)] border border-[rgba(63,185,80,0.2)] rounded px-2 py-0.5 whitespace-nowrap">
+                      {tag}
+                    </span>
                   ))}
                 </div>
               )}
+
             </article>
           ))}
         </div>
@@ -235,320 +281,3 @@ const techCategories = [
   )}
 
 </BaseLayout>
-
-<style>
-  /* ------------------------------------------------------------------ */
-  /* Hero                                                                 */
-  /* ------------------------------------------------------------------ */
-  .hero {
-    padding-top: var(--space-24);
-    padding-bottom: var(--space-24);
-  }
-
-  .hero-eyebrow {
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    color: var(--accent);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-bottom: var(--space-4);
-  }
-
-  .hero-name {
-    font-size: clamp(var(--text-3xl), 5vw, 3.5rem);
-    font-weight: 600;
-    line-height: 1.1;
-    letter-spacing: -0.02em;
-    margin-bottom: var(--space-6);
-    color: var(--text-primary);
-  }
-
-  .hero-description {
-    font-size: var(--text-lg);
-    color: var(--text-muted);
-    max-width: 52ch;
-    line-height: 1.65;
-    margin-bottom: var(--space-8);
-  }
-
-  .hero-actions {
-    display: flex;
-    gap: var(--space-4);
-    flex-wrap: wrap;
-  }
-
-  /* ------------------------------------------------------------------ */
-  /* Buttons                                                              */
-  /* ------------------------------------------------------------------ */
-  .btn-primary {
-    display: inline-flex;
-    align-items: center;
-    background-color: var(--accent);
-    color: #0d1117;
-    padding: var(--space-3) var(--space-6);
-    border-radius: 6px;
-    font-size: var(--text-sm);
-    font-weight: 600;
-    transition: background-color 0.15s ease, transform 0.1s ease;
-  }
-
-  .btn-primary:hover {
-    background-color: var(--accent-dim);
-  }
-
-  .btn-primary:active {
-    transform: scale(0.98);
-  }
-
-  .btn-secondary {
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid var(--bg-border);
-    color: var(--text-primary);
-    padding: var(--space-3) var(--space-6);
-    border-radius: 6px;
-    font-size: var(--text-sm);
-    font-weight: 500;
-    transition: border-color 0.15s ease, color 0.15s ease;
-  }
-
-  .btn-secondary:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-
-  /* ------------------------------------------------------------------ */
-  /* Section shared                                                       */
-  /* ------------------------------------------------------------------ */
-  .section-eyebrow {
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    color: var(--accent);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-bottom: var(--space-2);
-  }
-
-  .section-title {
-    font-size: var(--text-2xl);
-    font-weight: 600;
-    margin-bottom: var(--space-8);
-  }
-
-  .section-header-row {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    margin-bottom: var(--space-8);
-    gap: var(--space-4);
-  }
-
-  .section-header-row .section-title {
-    margin-bottom: 0;
-  }
-
-  .view-all-link {
-    font-family: var(--font-mono);
-    font-size: var(--text-sm);
-    color: var(--text-muted);
-    white-space: nowrap;
-    transition: color 0.15s ease;
-    padding-bottom: 2px;
-  }
-
-  .view-all-link:hover {
-    color: var(--accent);
-  }
-
-  /* ------------------------------------------------------------------ */
-  /* Currently Working On                                                 */
-  /* ------------------------------------------------------------------ */
-  .active-series-card {
-    position: relative;
-    overflow: hidden;
-  }
-
-  .active-series-inner {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--space-8);
-    flex-wrap: wrap;
-  }
-
-  .active-series-content {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .active-series-meta {
-    margin-bottom: var(--space-3);
-  }
-
-  .meta-link {
-    color: var(--text-muted);
-    transition: color 0.15s ease;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
-
-  .meta-link:hover {
-    color: var(--accent);
-  }
-
-  .active-series-title {
-    font-size: var(--text-xl);
-    font-weight: 600;
-    margin-bottom: var(--space-3);
-  }
-
-  .active-series-description {
-    font-size: var(--text-base);
-    color: var(--text-muted);
-    line-height: 1.6;
-    max-width: 60ch;
-  }
-
-  .active-series-actions {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-    flex-shrink: 0;
-    align-self: center;
-  }
-
-  /* Active pulse indicator — top-right corner of the card */
-  .active-indicator {
-    position: absolute;
-    top: var(--space-4);
-    right: var(--space-4);
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
-
-  .active-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background-color: var(--accent);
-    animation: pulse 2s ease-in-out infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50%       { opacity: 0.5; transform: scale(0.8); }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .active-dot { animation: none; }
-  }
-
-  .active-label {
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    color: var(--accent);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-  }
-
-  /* ------------------------------------------------------------------ */
-  /* Tech grid                                                            */
-  /* ------------------------------------------------------------------ */
-  .tech-section {
-    border-top: 1px solid var(--bg-border);
-  }
-
-  .tech-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: var(--space-8);
-  }
-
-  .tech-category-label {
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-bottom: var(--space-4);
-    font-weight: 500;
-  }
-
-  .tech-items {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-  }
-
-  .tech-item {
-    font-size: var(--text-sm);
-    color: var(--text-primary);
-    padding: var(--space-2) 0;
-    border-bottom: 1px solid var(--bg-border);
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
-
-  .tech-item::before {
-    content: "▹";
-    color: var(--accent);
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    flex-shrink: 0;
-  }
-
-  /* ------------------------------------------------------------------ */
-  /* Blog teaser                                                          */
-  /* ------------------------------------------------------------------ */
-  .blog-teaser {
-    border-top: 1px solid var(--bg-border);
-  }
-
-  .post-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: var(--space-6);
-  }
-
-  .post-card {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-  }
-
-  .post-card-meta {
-    /* inherits .meta from global */
-  }
-
-  .post-card-title {
-    font-size: var(--text-lg);
-    font-weight: 600;
-    line-height: 1.3;
-  }
-
-  .post-card-title a {
-    color: var(--text-primary);
-    transition: color 0.15s ease;
-  }
-
-  .post-card-title a:hover {
-    color: var(--accent);
-  }
-
-  .post-card-description {
-    font-size: var(--text-sm);
-    color: var(--text-muted);
-    line-height: 1.6;
-    flex: 1;
-  }
-
-  .post-card-tags {
-    display: flex;
-    gap: var(--space-2);
-    flex-wrap: wrap;
-    margin-top: auto;
-    padding-top: var(--space-2);
-  }
-</style>

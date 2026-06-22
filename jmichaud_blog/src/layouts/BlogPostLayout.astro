@@ -2,20 +2,11 @@
 /**
  * BlogPostLayout.astro
  *
- * Layout for blog-post typed entries (non-technical: career, process,
- * opinion, retrospective). Delegates the full document shell — <head>
- * meta, schema graph, header, footer — to BaseLayout.
+ * Layout for blog-post typed entries.
  *
- * What this layout owns:
- *   - BlogPosting + BreadcrumbList schema composition
- *   - Article header (title, dates, reading time)
- *   - Series nav breadcrumb when the post belongs to a series
- *   - <slot> for MDX body content
- *
- * What this layout deliberately does NOT own:
- *   - <html>, <head>, <body> — BaseLayout's responsibility
- *   - OG / Twitter / canonical meta — passed up to BaseLayout as props
- *   - WebSite + Person schema — BaseLayout always injects these
+ * CSS migration: post-layout.css and post-prose.css have been dissolved
+ * into Tailwind utility classes inline on each element.
+ * No external stylesheet imports remain in this layout.
  */
 
 import type { CollectionEntry } from "astro:content";
@@ -23,16 +14,8 @@ import BaseLayout from "./BaseLayout.astro";
 import { getArticleSchema, getBreadcrumbSchema } from "../lib/schema";
 import { SITE } from "../config/site";
 
-// CSS: global tokens + reset loaded by BaseLayout.
-// post-layout.css: breadcrumb nav + article header.
-// post-prose.css:  MDX body prose typography.
-import "../styles/post-layout.css";
-import "../styles/post-prose.css";
-
 interface Props {
-  /** Narrowed to blog-post — no proficiencyLevel or dependencies on this type. */
   post: CollectionEntry<"blog"> & { data: { type: "blog-post" } };
-  /** null for standalone posts. Typed explicitly to prevent accidental undefined checks. */
   series: CollectionEntry<"series"> | null;
 }
 
@@ -48,16 +31,10 @@ const {
   noindex,
 } = post.data;
 
-// Canonical: use frontmatter override (future syndication) or derive from slug.
 const canonicalUrl = canonicalOverride ?? `${SITE.url}/blog/${post.id}`;
 
-// --- Schema ---
-// Article schema branches on post.data.type internally — passes "blog-post"
-// here, so getArticleSchema returns a BlogPosting node.
 const articleSchema = getArticleSchema(post, series, canonicalUrl);
 
-// Breadcrumb: homepage is prepended automatically by getBreadcrumbSchema.
-// Series posts get an extra crumb pointing to the series index page.
 const breadcrumbItems = [
   { name: "Blog", path: "/blog" },
   ...(series
@@ -79,31 +56,62 @@ const breadcrumbSchema = getBreadcrumbSchema(breadcrumbItems);
   articleModifiedTime={(updatedAt ?? publishedAt).toISOString()}
   schemaNodes={[articleSchema, breadcrumbSchema]}
 >
-  <div class="container-prose">
-    <nav class="post-breadcrumb" aria-label="Breadcrumb">
-      <a href="/">{SITE.name}</a>
-      <span class="post-breadcrumb-sep" aria-hidden="true">/</span>
-      <a href="/blog">Blog</a>
+  <div class="max-w-[var(--width-prose)] mx-auto px-6">
+    <!-- Breadcrumb -->
+    <nav
+      class="flex items-center flex-wrap gap-2 font-mono text-xs text-text-muted py-8 pb-6"
+      aria-label="Breadcrumb"
+    >
+      <a
+        href="/"
+        class="text-text-muted hover:text-accent transition-colors duration-150"
+        >{SITE.name}</a
+      >
+      <span class="text-bg-border" aria-hidden="true">/</span>
+      <a
+        href="/blog"
+        class="text-text-muted hover:text-accent transition-colors duration-150"
+        >Blog</a
+      >
       {
         series && (
           <>
-            <span class="post-breadcrumb-sep" aria-hidden="true">
+            <span class="text-bg-border" aria-hidden="true">
               /
             </span>
-            <a href={`/series/${series.data.slug}`}>{series.data.title}</a>
+            <a
+              href={`/series/${series.data.slug}`}
+              class="text-text-muted hover:text-accent transition-colors duration-150"
+            >
+              {series.data.title}
+            </a>
           </>
         )
       }
-      <span class="post-breadcrumb-sep" aria-hidden="true">/</span>
-      <span aria-current="page">{title}</span>
+      <span class="text-bg-border" aria-hidden="true">/</span>
+      <span
+        aria-current="page"
+        class="text-text-primary max-w-[32ch] whitespace-nowrap overflow-hidden text-ellipsis"
+        >{title}</span
+      >
     </nav>
 
-    <article class="post-article">
-      <header class="post-header">
-        <h1 class="post-title">{title}</h1>
-        <p class="post-description">{description}</p>
+    <article>
+      <!-- Post header -->
+      <header class="pb-8 border-b border-bg-border mb-8">
+        <h1
+          class="text-[clamp(1.5rem,4vw,2.25rem)] font-semibold leading-[1.15] tracking-[-0.02em] mb-4"
+        >
+          {title}
+        </h1>
+        <p class="text-lg text-text-muted leading-[1.6] mb-6 max-w-[60ch]">
+          {description}
+        </p>
 
-        <div class="meta post-meta">
+        <!-- Meta row -->
+        <div
+          class="flex items-center flex-wrap gap-3 text-xs text-text-muted font-mono"
+        >
           <time datetime={publishedAt.toISOString()}>
             {
               publishedAt.toLocaleDateString("en-CA", {
@@ -116,7 +124,7 @@ const breadcrumbSchema = getBreadcrumbSchema(breadcrumbItems);
           {
             updatedAt && (
               <>
-                <span class="meta-sep">·</span>
+                <span class="text-bg-border">·</span>
                 <span>
                   Updated{" "}
                   <time datetime={updatedAt.toISOString()}>
@@ -133,7 +141,7 @@ const breadcrumbSchema = getBreadcrumbSchema(breadcrumbItems);
           {
             readingTime !== undefined && (
               <>
-                <span class="meta-sep">·</span>
+                <span class="text-bg-border">·</span>
                 <span>{readingTime} min read</span>
               </>
             )
@@ -141,7 +149,8 @@ const breadcrumbSchema = getBreadcrumbSchema(breadcrumbItems);
         </div>
       </header>
 
-      <div class="post-body">
+      <!-- Post body -->
+      <div class="prose prose-invert max-w-none pb-24">
         <slot />
       </div>
     </article>

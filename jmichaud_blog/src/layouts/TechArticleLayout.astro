@@ -2,25 +2,11 @@
 /**
  * TechArticleLayout.astro
  *
- * Layout for tech-article typed entries (code, architecture, tooling,
- * infrastructure). Extends the shared post structure with additional
- * fields specific to TechArticle schema: proficiencyLevel, dependencies.
+ * Layout for tech-article typed entries.
  *
- * What this layout owns:
- *   - TechArticle + BreadcrumbList schema composition
- *   - Article header with proficiencyLevel badge + dependencies list
- *   - Series nav breadcrumb when the post belongs to a series
- *   - <slot> for MDX body content
- *
- * What this layout deliberately does NOT own:
- *   - <html>, <head>, <body> — BaseLayout's responsibility
- *   - OG / Twitter / canonical meta — passed up to BaseLayout as props
- *   - WebSite + Person schema — BaseLayout always injects these
- *
- * NOTE: This layout does not import BlogPostLayout to avoid a cascade
- * of nested slot wrappers. Both layouts share the same CSS files
- * (post-layout.css, post-prose.css). If the prose body styles diverge,
- * extract a shared PostBody.astro component rather than inheriting.
+ * CSS migration: post-layout.css, post-prose.css, and tech-article.css
+ * have been dissolved into Tailwind utility classes inline on each element.
+ * No external stylesheet imports remain in this layout.
  */
 
 import type { CollectionEntry } from "astro:content";
@@ -28,21 +14,8 @@ import BaseLayout from "./BaseLayout.astro";
 import { getArticleSchema, getBreadcrumbSchema } from "../lib/schema";
 import { SITE } from "../config/site";
 
-// CSS: global tokens + reset loaded by BaseLayout.
-// post-layout.css:  breadcrumb nav + article header (shared with BlogPostLayout).
-// post-prose.css:   MDX body prose typography (shared with BlogPostLayout).
-// tech-article.css: proficiency badge + dependencies (this layout only).
-import "../styles/post-layout.css";
-import "../styles/post-prose.css";
-import "../styles/tech-article.css";
-
 interface Props {
-  /**
-   * Narrowed to tech-article — proficiencyLevel and dependencies are
-   * accessible without optional chaining on fields the type guarantees.
-   */
   post: CollectionEntry<"blog"> & { data: { type: "tech-article" } };
-  /** null for standalone posts. Typed explicitly to prevent accidental undefined checks. */
   series: CollectionEntry<"series"> | null;
 }
 
@@ -60,16 +33,10 @@ const {
   noindex,
 } = post.data;
 
-// Canonical: use frontmatter override (future syndication) or derive from slug.
 const canonicalUrl = canonicalOverride ?? `${SITE.url}/blog/${post.id}`;
 
-// --- Schema ---
-// getArticleSchema branches on post.data.type internally — returns TechArticle
-// with proficiencyLevel and dependencies populated when set.
 const articleSchema = getArticleSchema(post, series, canonicalUrl);
 
-// Breadcrumb: homepage is prepended automatically by getBreadcrumbSchema.
-// Series posts get an extra crumb pointing to the series index page.
 const breadcrumbItems = [
   { name: "Blog", path: "/blog" },
   ...(series
@@ -79,12 +46,22 @@ const breadcrumbItems = [
 ];
 const breadcrumbSchema = getBreadcrumbSchema(breadcrumbItems);
 
-// Map proficiencyLevel enum to display label + CSS modifier class.
-// Kept in the layout rather than in a utility because it is presentation logic.
+// Proficiency level → label + Tailwind color classes
 const levelConfig = {
-  beginner: { label: "Beginner", modifier: "level--beginner" },
-  intermediate: { label: "Intermediate", modifier: "level--intermediate" },
-  expert: { label: "Expert", modifier: "level--expert" },
+  beginner: {
+    label: "Beginner",
+    class:
+      "text-[#58a6ff] bg-[rgba(88,166,255,0.1)] border-[rgba(88,166,255,0.25)]",
+  },
+  intermediate: {
+    label: "Intermediate",
+    class: "text-accent bg-[rgba(63,185,80,0.1)] border-[rgba(63,185,80,0.25)]",
+  },
+  expert: {
+    label: "Expert",
+    class:
+      "text-[#f78166] bg-[rgba(247,129,102,0.1)] border-[rgba(247,129,102,0.25)]",
+  },
 } as const;
 
 const level = proficiencyLevel ? levelConfig[proficiencyLevel] : null;
@@ -101,31 +78,62 @@ const level = proficiencyLevel ? levelConfig[proficiencyLevel] : null;
   articleModifiedTime={(updatedAt ?? publishedAt).toISOString()}
   schemaNodes={[articleSchema, breadcrumbSchema]}
 >
-  <div class="container-prose">
-    <nav class="post-breadcrumb" aria-label="Breadcrumb">
-      <a href="/">{SITE.name}</a>
-      <span class="post-breadcrumb-sep" aria-hidden="true">/</span>
-      <a href="/blog">Blog</a>
+  <div class="max-w-[var(--width-prose)] mx-auto px-6">
+    <!-- Breadcrumb -->
+    <nav
+      class="flex items-center flex-wrap gap-2 font-mono text-xs text-text-muted py-8 pb-6"
+      aria-label="Breadcrumb"
+    >
+      <a
+        href="/"
+        class="text-text-muted hover:text-accent transition-colors duration-150"
+        >{SITE.name}</a
+      >
+      <span class="text-bg-border" aria-hidden="true">/</span>
+      <a
+        href="/blog"
+        class="text-text-muted hover:text-accent transition-colors duration-150"
+        >Blog</a
+      >
       {
         series && (
           <>
-            <span class="post-breadcrumb-sep" aria-hidden="true">
+            <span class="text-bg-border" aria-hidden="true">
               /
             </span>
-            <a href={`/series/${series.data.slug}`}>{series.data.title}</a>
+            <a
+              href={`/series/${series.data.slug}`}
+              class="text-text-muted hover:text-accent transition-colors duration-150"
+            >
+              {series.data.title}
+            </a>
           </>
         )
       }
-      <span class="post-breadcrumb-sep" aria-hidden="true">/</span>
-      <span aria-current="page">{title}</span>
+      <span class="text-bg-border" aria-hidden="true">/</span>
+      <span
+        aria-current="page"
+        class="text-text-primary max-w-[32ch] whitespace-nowrap overflow-hidden text-ellipsis"
+        >{title}</span
+      >
     </nav>
 
-    <article class="post-article">
-      <header class="post-header">
-        <h1 class="post-title">{title}</h1>
-        <p class="post-description">{description}</p>
+    <article>
+      <!-- Post header -->
+      <header class="pb-8 border-b border-bg-border mb-8">
+        <h1
+          class="text-[clamp(1.5rem,4vw,2.25rem)] font-semibold leading-[1.15] tracking-[-0.02em] mb-4"
+        >
+          {title}
+        </h1>
+        <p class="text-lg text-text-muted leading-[1.6] mb-6 max-w-[60ch]">
+          {description}
+        </p>
 
-        <div class="meta post-meta">
+        <!-- Meta row -->
+        <div
+          class="flex items-center flex-wrap gap-3 text-xs text-text-muted font-mono"
+        >
           <time datetime={publishedAt.toISOString()}>
             {
               publishedAt.toLocaleDateString("en-CA", {
@@ -138,7 +146,7 @@ const level = proficiencyLevel ? levelConfig[proficiencyLevel] : null;
           {
             updatedAt && (
               <>
-                <span class="meta-sep">·</span>
+                <span class="text-bg-border">·</span>
                 <span>
                   Updated{" "}
                   <time datetime={updatedAt.toISOString()}>
@@ -155,7 +163,7 @@ const level = proficiencyLevel ? levelConfig[proficiencyLevel] : null;
           {
             readingTime !== undefined && (
               <>
-                <span class="meta-sep">·</span>
+                <span class="text-bg-border">·</span>
                 <span>{readingTime} min read</span>
               </>
             )
@@ -163,8 +171,10 @@ const level = proficiencyLevel ? levelConfig[proficiencyLevel] : null;
           {
             level && (
               <>
-                <span class="meta-sep">·</span>
-                <span class={`proficiency-badge ${level.modifier}`}>
+                <span class="text-bg-border">·</span>
+                <span
+                  class={`font-mono text-xs rounded px-2 py-px font-medium border ${level.class}`}
+                >
                   {level.label}
                 </span>
               </>
@@ -172,13 +182,21 @@ const level = proficiencyLevel ? levelConfig[proficiencyLevel] : null;
           }
         </div>
 
+        <!-- Dependencies row -->
         {
           dependencies && dependencies.length > 0 && (
-            <div class="dependencies" aria-label="Requirements">
-              <span class="dependencies-label">Requires</span>
-              <ul class="dependencies-list" role="list">
+            <div
+              class="flex items-center flex-wrap gap-2 mt-4"
+              aria-label="Requirements"
+            >
+              <span class="font-mono text-xs text-text-muted uppercase tracking-[0.08em] mr-1">
+                Requires
+              </span>
+              <ul class="flex flex-wrap gap-2" role="list">
                 {dependencies.map((dep) => (
-                  <li class="tag">{dep}</li>
+                  <li class="font-mono text-xs text-accent bg-[rgba(63,185,80,0.1)] border border-[rgba(63,185,80,0.2)] rounded px-2 py-0.5 whitespace-nowrap">
+                    {dep}
+                  </li>
                 ))}
               </ul>
             </div>
@@ -186,7 +204,9 @@ const level = proficiencyLevel ? levelConfig[proficiencyLevel] : null;
         }
       </header>
 
-      <div class="post-body">
+      <!-- Post body — prose styles from @tailwindcss/typography,
+           Shiki + token overrides handled in global.css -->
+      <div class="prose prose-invert max-w-none pb-24">
         <slot />
       </div>
     </article>
