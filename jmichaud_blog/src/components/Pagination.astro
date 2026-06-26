@@ -1,0 +1,150 @@
+---
+/**
+ * Pagination.astro
+ *
+ * Reusable pagination nav component. Accepts an Astro Page object and
+ * renders: ← prev | numbered pages | next →
+ *
+ * Design decisions:
+ *   - basePath must be passed explicitly rather than inferred from Astro.url
+ *     so the component remains usable on any listing page (/blog, /tags/X, etc.)
+ *   - Page 1 always links to basePath (e.g. /blog), never /blog/page/1
+ *   - Pages 2+ link to basePath/page/N
+ *   - Ellipsis truncation: show first, last, current ±1. Keeps nav compact
+ *     even with 20+ pages.
+ *   - Current page rendered as <span aria-current="page"> — not a link.
+ *     Screen readers announce it; keyboard users skip it naturally.
+ *   - No JS — pure static HTML.
+ */
+
+import type { Page } from "astro";
+import type { CollectionEntry } from "astro:content";
+
+interface Props {
+  page: Page<CollectionEntry<"blog">>;
+  /**
+   * The root path for this listing, without trailing slash.
+   * e.g. "/blog"
+   * Page 1  → basePath
+   * Page N  → basePath/page/N
+   */
+  basePath: string;
+}
+
+const { page, basePath } = Astro.props;
+
+/** Resolve the canonical href for a given page number. */
+function pageHref(n: number): string {
+  return n === 1 ? basePath : `${basePath}/page/${n}`;
+}
+
+/**
+ * Build the sequence of page numbers (and "gap" markers) to render.
+ * Shows: first, last, current-1, current, current+1 — rest as "…".
+ *
+ * Example for 10 pages, current = 5:
+ *   1  …  4  5  6  …  10
+ */
+function buildPageSequence(current: number, total: number): (number | "gap")[] {
+  if (total <= 7) {
+    // Show all — no truncation needed
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+
+  const show = new Set<number>();
+  show.add(1);
+  show.add(total);
+  // Window around current
+  for (let i = Math.max(1, current - 1); i <= Math.min(total, current + 1); i++) {
+    show.add(i);
+  }
+
+  const sorted = Array.from(show).sort((a, b) => a - b);
+  const result: (number | "gap")[] = [];
+
+  for (let i = 0; i < sorted.length; i++) {
+    if (i > 0 && sorted[i] - sorted[i - 1] > 1) {
+      result.push("gap");
+    }
+    result.push(sorted[i]);
+  }
+
+  return result;
+}
+
+const sequence = buildPageSequence(page.currentPage, page.lastPage);
+---
+
+{
+  page.lastPage > 1 && (
+    <nav
+      aria-label="Blog pagination"
+      class="flex items-center justify-center gap-1 py-12 font-mono text-sm"
+    >
+      {/* ← Prev */}
+      {page.url.prev ? (
+        <a
+          href={pageHref(page.currentPage - 1)}
+          aria-label="Previous page"
+          class="flex items-center gap-1 px-3 py-2 rounded text-text-muted border border-bg-border hover:border-accent hover:text-accent transition-[border-color,color] duration-150"
+        >
+          ←
+        </a>
+      ) : (
+        <span
+          aria-disabled="true"
+          class="flex items-center gap-1 px-3 py-2 rounded text-bg-border border border-bg-border cursor-not-allowed select-none"
+          aria-label="No previous page"
+        >
+          ←
+        </span>
+      )}
+
+      {/* Page numbers */}
+      {sequence.map((item) =>
+        item === "gap" ? (
+          <span
+            class="px-2 py-2 text-text-muted select-none"
+            aria-hidden="true"
+          >
+            …
+          </span>
+        ) : item === page.currentPage ? (
+          <span
+            aria-current="page"
+            class="px-3 py-2 rounded bg-accent text-bg font-semibold min-w-[2.25rem] text-center"
+          >
+            {item}
+          </span>
+        ) : (
+          <a
+            href={pageHref(item)}
+            aria-label={`Page ${item}`}
+            class="px-3 py-2 rounded text-text-muted border border-bg-border hover:border-accent hover:text-accent transition-[border-color,color] duration-150 min-w-[2.25rem] text-center"
+          >
+            {item}
+          </a>
+        )
+      )}
+
+      {/* Next → */}
+      {page.url.next ? (
+        <a
+          href={pageHref(page.currentPage + 1)}
+          aria-label="Next page"
+          class="flex items-center gap-1 px-3 py-2 rounded text-text-muted border border-bg-border hover:border-accent hover:text-accent transition-[border-color,color] duration-150"
+        >
+          →
+        </a>
+      ) : (
+        <span
+          aria-disabled="true"
+          class="flex items-center gap-1 px-3 py-2 rounded text-bg-border border border-bg-border cursor-not-allowed select-none"
+          aria-label="No next page"
+        >
+          →
+        </span>
+      )}
+    </nav>
+  )
+}

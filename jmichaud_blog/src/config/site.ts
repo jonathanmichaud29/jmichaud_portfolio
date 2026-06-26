@@ -8,4 +8,7 @@ export const SITE = {
     github: "https://github.com/jonathanmichaud29",
     linkedin: "https://www.linkedin.com/in/jlmichaud/",
   },
+  blog: {
+    pageSize: 1,
+  },
 } as const;

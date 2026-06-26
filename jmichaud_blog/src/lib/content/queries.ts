@@ -139,3 +139,35 @@ export async function getLatestFeedItems(limit: number): Promise<FeedItem[]> {
     .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
     .slice(0, limit);
 }
+
+// ---------------------------------------------------------------------------
+// getAllPostsSortedDesc()
+//
+// Returns ALL published blog posts (standalone + series members) sorted by
+// publishedAt descending. noindex posts are excluded.
+//
+// Used by the /blog paginated index.
+//
+// Design decision: /blog shows every individual post, including series parts.
+// Rationale:
+//   - /blog is the exhaustive archive — users expect to find every post here.
+//   - Series parts are surfaced as individual cards with a series badge,
+//     so the reader can see them in chronological context.
+//   - The homepage's "Currently working on" block handles editorial curation
+//     of active series — that's the right place to collapse series to one card.
+//   - Hiding 2 of 3 posts because they belong to a series is a broken listing
+//     from a reader's perspective.
+//
+// The return type is CollectionEntry<"blog">[] (not FeedItem[]) because the
+// /blog index works directly with the collection entry for type-safe field
+// access (tags, type, readingTime, seriesPart) without FeedItem normalisation.
+// ---------------------------------------------------------------------------
+export async function getAllPostsSortedDesc(): Promise<
+  CollectionEntry<"blog">[]
+> {
+  const posts = await getCollection("blog", ({ data }) => !data.noindex);
+
+  return posts.sort(
+    (a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime(),
+  );
+}

@@ -1,0 +1,136 @@
+---
+/**
+ * /blog/index.astro — Blog listing, page 1
+ *
+ * Canonical URL for the blog index is /blog — never /blog/page/1.
+ * This is a static route (no getStaticPaths needed) that renders the
+ * first page of all published posts directly.
+ *
+ * Pages 2+ are handled by /blog/page/[page].astro using Astro's paginate().
+ * The Pagination component links page N>1 to /blog/page/N and page 1 back
+ * to /blog, so the /blog canonical is never displaced.
+ *
+ * Why not use [...page].astro in this directory?
+ * /blog/[slug].astro already occupies this directory as a dynamic route.
+ * A rest-param route [...page].astro in the same directory creates
+ * ambiguous route resolution at the same path depth. Separating page 1
+ * (static index.astro) from pages 2+ (/blog/page/[page].astro) avoids
+ * the conflict cleanly — the trade-off is that both files must use the
+ * same PAGE_SIZE and the same query function, which is enforced by the
+ * shared getAllPostsSortedDesc() import.
+ *
+ * All posts are shown (standalone + series members). See queries.ts for
+ * the rationale. Series membership is rendered as a badge on BlogPostCard.
+ */
+
+export const prerender = true;
+
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Pagination from "../../components/Pagination.astro";
+import BlogPostCard from "../../components/BlogPostCard.astro";
+import { getBreadcrumbSchema } from "../../lib/schema";
+import { getAllPostsSortedDesc } from "../../lib/content/queries";
+import { SITE } from "../../config/site";
+import type { Page } from "astro";
+import type { CollectionEntry } from "astro:content";
+
+const PAGE_SIZE = SITE.blog.pageSize;
+
+const allPosts = await getAllPostsSortedDesc();
+const pagePosts = allPosts.slice(0, PAGE_SIZE);
+const totalPages = Math.max(1, Math.ceil(allPosts.length / PAGE_SIZE));
+
+// Construct a Page<T> object to pass to the shared Pagination component.
+// Astro's paginate() produces this shape automatically for dynamic routes;
+// we replicate it here for the static index so Pagination.astro has one
+// uniform prop type.
+//
+// url.first / url.last: Astro's paginate() returns `undefined` on these
+// when you ARE on the first/last page respectively. We match that behaviour.
+const page: Page<CollectionEntry<"blog">> = {
+  data: pagePosts,
+  start: 0,
+  end: Math.max(0, pagePosts.length - 1),
+  total: allPosts.length,
+  currentPage: 1,
+  size: PAGE_SIZE,
+  lastPage: totalPages,
+  url: {
+    current: "/blog",
+    prev: undefined, // no previous — we are page 1
+    next: totalPages > 1 ? "/blog/page/2" : undefined,
+    first: undefined, // undefined when on first page (matches Astro paginate() behaviour)
+    last: totalPages > 1 ? `/blog/page/${totalPages}` : undefined, // undefined when there is only one page
+  },
+};
+
+const canonicalUrl = `${SITE.url}/blog`;
+
+const breadcrumbSchema = getBreadcrumbSchema([{ name: "Blog", path: "/blog" }]);
+---
+
+<BaseLayout
+  title="Blog"
+  description="Technical articles and posts on full-stack development, infrastructure, and engineering craft."
+  canonicalUrl={canonicalUrl}
+  schemaNodes={[breadcrumbSchema]}
+>
+  <div class="max-w-[var(--width-prose)] mx-auto px-6">
+    <!-- Breadcrumb -->
+    <nav
+      class="flex items-center flex-wrap gap-2 font-mono text-xs text-text-muted py-8 pb-6"
+      aria-label="Breadcrumb"
+    >
+      <a
+        href="/"
+        class="text-text-muted hover:text-accent transition-colors duration-150"
+        >{SITE.name}</a
+      >
+      <span class="text-bg-border" aria-hidden="true">/</span>
+      <span aria-current="page" class="text-text-primary">Blog</span>
+    </nav>
+
+    <!-- Page header -->
+    <header class="pb-8 border-b border-bg-border mb-8">
+      <p class="font-mono text-xs text-accent uppercase tracking-[0.1em] mb-3">
+        Writing
+      </p>
+      <h1
+        class="text-[clamp(1.5rem,4vw,2.25rem)] font-semibold leading-[1.15] tracking-[-0.02em] mb-3"
+      >
+        Blog
+      </h1>
+      <p class="text-base text-text-muted leading-[1.65] max-w-[52ch]">
+        Articles on full-stack development, infrastructure, and engineering
+        craft.
+        {
+          allPosts.length > 0 && (
+            <span class="font-mono text-xs text-text-muted ml-2">
+              {allPosts.length} {allPosts.length === 1 ? "post" : "posts"}
+            </span>
+          )
+        }
+      </p>
+    </header>
+
+    <!-- Post list -->
+    {
+      pagePosts.length === 0 ? (
+        <p class="text-text-muted text-sm py-12 text-center font-mono">
+          No posts yet. Check back soon.
+        </p>
+      ) : (
+        <ol class="flex flex-col gap-4" aria-label="Blog posts">
+          {pagePosts.map((post) => (
+            <li>
+              <BlogPostCard post={post} />
+            </li>
+          ))}
+        </ol>
+      )
+    }
+
+    <!-- Pagination — hidden by Pagination.astro when lastPage === 1 -->
+    <Pagination page={page} basePath="/blog" />
+  </div>
+</BaseLayout>

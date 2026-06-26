@@ -1,0 +1,124 @@
+---
+/**
+ * BlogPostCard.astro
+ *
+ * Renders a single blog post as a card for listing pages (/blog, /blog/page/N).
+ * Accepts a CollectionEntry<"blog"> directly — not a FeedItem — because the
+ * /blog index works with raw collection entries for type-safe field access.
+ *
+ * Series membership is shown as a badge when post.data.series is set.
+ * The series collection entry is not resolved here — we only need the id
+ * for the badge text and a link to /series/[slug]. However, we only have
+ * the series reference id (e.g. "docker-networking"), not the slug or title
+ * from the series collection entry. We use the series id as the slug since
+ * the series schema enforces id === slug by convention (both are kebab-case
+ * and the series index.json sets them identically for the docker-networking
+ * fixture).
+ *
+ * If you later need the full series title on the card, pass the series
+ * CollectionEntry as an optional prop and fall back to the id if absent.
+ */
+
+import type { CollectionEntry } from "astro:content";
+
+interface Props {
+  post: CollectionEntry<"blog">;
+}
+
+const { post } = Astro.props;
+
+// post.data.series is a reference object { id, collection } when set,
+// or undefined for standalone posts.
+const seriesId = post.data.series?.id;
+---
+
+<article
+  class="bg-bg-surface border border-bg-border rounded-lg p-6 flex flex-col gap-3 hover:border-accent transition-colors duration-150"
+>
+  <!-- Post meta -->
+  <div
+    class="flex items-center flex-wrap gap-3 text-xs text-text-muted font-mono"
+  >
+    {/* Type badge */}
+    <span
+      class="font-mono text-xs text-accent bg-[rgba(63,185,80,0.1)] border border-[rgba(63,185,80,0.2)] rounded px-2 py-0.5 whitespace-nowrap"
+    >
+      {post.data.type === "tech-article" ? "Tech" : "Post"}
+    </span>
+
+    {/* Series badge — shown when the post belongs to a series */}
+    {
+      seriesId && (
+        <>
+          <span class="text-bg-border">·</span>
+          <a
+            href={`/series/${seriesId}`}
+            class="font-mono text-xs text-text-muted bg-bg border border-bg-border rounded px-2 py-0.5 whitespace-nowrap hover:border-accent hover:text-accent transition-[border-color,color] duration-150"
+          >
+            Series
+            {post.data.seriesPart !== undefined && (
+              <span> · Part {post.data.seriesPart}</span>
+            )}
+          </a>
+        </>
+      )
+    }
+
+    <span class="text-bg-border">·</span>
+    <time datetime={post.data.publishedAt.toISOString()}>
+      {
+        post.data.publishedAt.toLocaleDateString("en-CA", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        })
+      }
+    </time>
+
+    {
+      post.data.readingTime !== undefined && (
+        <>
+          <span class="text-bg-border">·</span>
+          <span>{post.data.readingTime} min read</span>
+        </>
+      )
+    }
+
+    {
+      post.data.type === "tech-article" && post.data.proficiencyLevel && (
+        <>
+          <span class="text-bg-border">·</span>
+          <span class="capitalize">{post.data.proficiencyLevel}</span>
+        </>
+      )
+    }
+  </div>
+
+  <!-- Title -->
+  <h2 class="text-xl font-semibold leading-[1.3]">
+    <a
+      href={`/blog/${post.id}`}
+      class="text-text-primary hover:text-accent transition-colors duration-150"
+    >
+      {post.data.title}
+    </a>
+  </h2>
+
+  <!-- Description -->
+  <p class="text-sm text-text-muted leading-[1.6]">
+    {post.data.description}
+  </p>
+
+  <!-- Tags — capped at 4, matching the series page convention -->
+  {
+    post.data.tags.length > 0 && (
+      <div class="flex flex-wrap gap-2 mt-1" aria-label="Tags">
+        {post.data.tags.slice(0, 4).map((tag) => (
+          <span class="font-mono text-xs text-accent bg-[rgba(63,185,80,0.1)] border border-[rgba(63,185,80,0.2)] rounded px-2 py-0.5 whitespace-nowrap">
+            {tag}
+          </span>
+        ))}
+      </div>
+    )
+  }
+</article>
