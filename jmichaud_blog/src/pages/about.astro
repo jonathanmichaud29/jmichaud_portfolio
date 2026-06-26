@@ -1,0 +1,354 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { SITE } from "../config/site";
+
+const skills = [
+  {
+    label: "Languages",
+    items: ["PHP", "Python", "JavaScript", "TypeScript"],
+  },
+  {
+    label: "Databases",
+    items: ["MySQL", "PostgreSQL", "ElasticSearch"],
+  },
+  {
+    label: "Technologies",
+    items: ["React", "Node.js", "RESTful API", "Redis", "MaterialUI", "WordPress", "CodeIgniter"],
+  },
+  {
+    label: "Environments",
+    items: ["Docker", "Kubernetes", "GitLab CI", "AWS", "Debian", "Sentry", "Nagios"],
+  },
+];
+
+const experiences = [
+  {
+    company: "Freelancer",
+    location: "Montreal",
+    period: "2020 – present",
+    stack: ["PHP", "MySQL", "Python", "PostgreSQL", "JavaScript", "Docker", "React", "Nagios"],
+    summary:
+      "Full-stack and DevOps work for independent clients — web hosting, deployments, security patching, and open-source React development.",
+    highlights: [
+      "Managed hosting and deployment pipelines for multiple client sites",
+      "Configured Nagios for proactive server health monitoring",
+      "Built an open-source React app with Firebase auth, ExpressJS API, and MariaDB",
+    ],
+  },
+  {
+    company: "GHG Sat",
+    location: "Montréal",
+    period: "2021 (Contract)",
+    stack: ["TypeScript", "React", "Node.js", "Python", "PostgreSQL", "Docker"],
+    summary:
+      "Refactored an internal web application and built new tooling used daily by production teams at a satellite data company.",
+    highlights: [
+      "Collaborated with DevOps to automate deployments via GitLab CI in Kubernetes",
+      "Led database migration with SQLAlchemy across a new schema",
+      "Ran weekly cross-team planning and follow-up sessions with the IT department",
+      "Wrote documentation enabling the team to maintain the app autonomously",
+    ],
+  },
+  {
+    company: "Power Go",
+    location: "Montreal",
+    period: "2017 – 2020",
+    stack: ["WordPress", "PHP", "MySQL", "JavaScript", "Google Ads"],
+    summary:
+      "Built and maintained websites for motorized vehicle dealerships. Centralized multi-site management and built internal tooling for non-technical staff.",
+    highlights: [
+      "Designed a centralized platform for managing dozens of client sites, accelerating patch delivery",
+      "Developed flexible Google Ads scripts to automate the marketing team's campaign workflows",
+      "Overhauled the product database and built a crawler usable by employees without programming expertise",
+    ],
+  },
+  {
+    company: "Jobillico",
+    location: "Quebec City",
+    period: "2010 – 2016",
+    stack: ["PHP", "MySQL", "ElasticSearch", "JavaScript", "HTML/CSS"],
+    summary:
+      "Full-stack development on a major public job search platform — the public site, admin section, and a custom multi-department CRM.",
+    highlights: [
+      "Designed and evolved a custom CRM serving multiple internal departments (sales, support, billing)",
+      "Built the SEO foundation for the public site in collaboration with an expert colleague",
+      "Established a communication layer between the CRM and public site for seamless package updates",
+      "Mentored and onboarded new developers; created technical documentation to reduce knowledge silos",
+    ],
+  },
+];
+
+const leadershipMoments = [
+  {
+    title: "Cross-team Coordination",
+    company: "GHG Sat, 2021",
+    body: "Ran weekly planning sessions with the IT team to align development with infrastructure, ensuring new features shipped within compliance windows and on schedule.",
+  },
+  {
+    title: "Mentoring & Knowledge Transfer",
+    company: "Jobillico / GHG Sat",
+    body: "Systematically documented codebases and processes to reduce bus-factor. Onboarded new developers at Jobillico and produced handover documentation at GHG Sat that allowed the team to maintain the app without external help.",
+  },
+  {
+    title: "Multi-department CRM Ownership",
+    company: "Jobillico, 2010–2016",
+    body: "Gathered requirements from multiple internal departments and translated them into a custom CRM, acting as the bridge between business needs and technical implementation over six years.",
+  },
+  {
+    title: "Centralized Architecture Design",
+    company: "Power Go, 2017–2020",
+    body: "Identified the bottleneck of managing dozens of isolated client sites and designed a centralized platform from scratch, cutting update and patch delivery time across the entire client base.",
+  },
+];
+
+const projects = [
+  {
+    name: "nbas",
+    description:
+      "A full-stack baseball league management app. Track rosters, game lineups, and player statistics across seasons. Built as a personal project tied to a sporting hobby — a real tool for a real league.",
+    stack: ["React", "ExpressJS", "MariaDB", "Docker", "Firebase Auth", "MaterialUI"],
+    url: "https://github.com/jonathanmichaud29/nbas",
+  },
+  {
+    name: "ai_sumup",
+    description:
+      "A Python project exploring LLM-based product review summarization. Progresses from ML fundamentals through Hugging Face Transformers fine-tuning and OpenAI API integration — learning by building.",
+    stack: ["Python", "PyTorch", "Hugging Face", "NumPy", "Pandas", "OpenAI API"],
+    url: "https://github.com/jonathanmichaud29/ai_sumup",
+  },
+];
+---
+
+<BaseLayout
+  title="About"
+  description="15 years of full-stack development across PHP, JavaScript, Python, and TypeScript. Seeking a permanent role. Bilingual FR/EN, Montreal-based."
+>
+
+  <!-- -------------------------------------------------------------------- -->
+  <!-- Hero                                                                   -->
+  <!-- -------------------------------------------------------------------- -->
+  <section class="py-24 section">
+    <div class="max-w-[var(--width-prose)] mx-auto px-6">
+      <p class="font-mono text-xs text-accent uppercase tracking-[0.1em] mb-4">About me</p>
+      <h1 class="text-[clamp(1.875rem,5vw,3rem)] font-semibold leading-[1.1] tracking-[-0.02em] mb-6 text-text-primary">
+        Senior Full-Stack Developer<br />
+        <span class="text-text-muted font-normal">ready for the next step.</span>
+      </h1>
+      <p class="text-lg text-text-muted max-w-[58ch] leading-[1.65] mb-4">
+        15 years of full-stack experience across PHP, JavaScript, Python, and TypeScript — from job boards
+        to satellite data platforms. I've always been the developer who writes the docs, onboards the new
+        hires, and owns the cross-team coordination.
+      </p>
+      <p class="text-lg text-text-muted max-w-[58ch] leading-[1.65] mb-8">
+        I'm seeking a permanent role where I can formalize what I've been practicing informally: technical
+        leadership. I pick up new stacks fast, build things that outlast my tenure, and show up every day
+        ready to own the outcome.
+      </p>
+      <div class="flex gap-3 flex-wrap">
+        <span class="font-mono text-xs text-accent bg-[rgba(63,185,80,0.1)] border border-[rgba(63,185,80,0.2)] rounded px-3 py-1.5">
+          Bilingual FR / EN
+        </span>
+        <span class="font-mono text-xs text-accent bg-[rgba(63,185,80,0.1)] border border-[rgba(63,185,80,0.2)] rounded px-3 py-1.5">
+          Montreal-based
+        </span>
+        <span class="font-mono text-xs text-accent bg-[rgba(63,185,80,0.1)] border border-[rgba(63,185,80,0.2)] rounded px-3 py-1.5">
+          Open to permanent roles
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <!-- -------------------------------------------------------------------- -->
+  <!-- Leadership in Practice                                                 -->
+  <!-- -------------------------------------------------------------------- -->
+  <section class="section border-t border-bg-border" aria-labelledby="leadership-heading">
+    <div class="max-w-[var(--width-wide)] mx-auto px-6">
+      <p class="font-mono text-xs text-accent uppercase tracking-[0.1em] mb-2">Beyond the code</p>
+      <h2 id="leadership-heading" class="text-2xl font-semibold mb-3">Leadership in practice</h2>
+      <p class="text-base text-text-muted max-w-[58ch] leading-[1.65] mb-10">
+        I haven't held a formal tech lead title — but I've been doing the work. Here's where it shows.
+      </p>
+      <div class="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-6">
+        {leadershipMoments.map((moment) => (
+          <div class="bg-bg-surface border border-bg-border rounded-lg p-6 flex flex-col gap-3">
+            <div>
+              <h3 class="text-base font-semibold mb-1">{moment.title}</h3>
+              <p class="font-mono text-xs text-text-muted">{moment.company}</p>
+            </div>
+            <p class="text-sm text-text-muted leading-[1.65]">{moment.body}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- -------------------------------------------------------------------- -->
+  <!-- Skills                                                                 -->
+  <!-- -------------------------------------------------------------------- -->
+  <section class="section border-t border-bg-border" aria-labelledby="skills-heading">
+    <div class="max-w-[var(--width-wide)] mx-auto px-6">
+      <p class="font-mono text-xs text-accent uppercase tracking-[0.1em] mb-2">Technical profile</p>
+      <h2 id="skills-heading" class="text-2xl font-semibold mb-8">Skills</h2>
+      <div class="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-8">
+        {skills.map((cat) => (
+          <div>
+            <h3 class="font-mono text-xs text-text-muted uppercase tracking-[0.08em] mb-4 font-medium">
+              {cat.label}
+            </h3>
+            <ul class="flex flex-col gap-2" role="list">
+              {cat.items.map((item) => (
+                <li class="text-sm text-text-primary py-2 border-b border-bg-border flex items-center gap-2 before:content-['▹'] before:text-accent before:font-mono before:text-xs before:flex-shrink-0">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- -------------------------------------------------------------------- -->
+  <!-- Work Experience                                                        -->
+  <!-- -------------------------------------------------------------------- -->
+  <section class="section border-t border-bg-border" aria-labelledby="experience-heading">
+    <div class="max-w-[var(--width-wide)] mx-auto px-6">
+      <p class="font-mono text-xs text-accent uppercase tracking-[0.1em] mb-2">Career</p>
+      <h2 id="experience-heading" class="text-2xl font-semibold mb-10">Work experience</h2>
+      <div class="flex flex-col gap-10">
+        {experiences.map((exp) => (
+          <article class="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4 md:gap-10 pb-10 border-b border-bg-border last:border-b-0 last:pb-0">
+            <div class="flex-shrink-0">
+              <p class="text-base font-semibold text-text-primary">{exp.company}</p>
+              <p class="font-mono text-xs text-text-muted mt-1">{exp.location}</p>
+              <p class="font-mono text-xs text-accent mt-1">{exp.period}</p>
+              <div class="flex flex-wrap gap-1.5 mt-3">
+                {exp.stack.map((tech) => (
+                  <span class="font-mono text-xs text-text-muted bg-bg border border-bg-border rounded px-1.5 py-0.5">
+                    {tech}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p class="text-sm text-text-primary leading-[1.65] mb-4">{exp.summary}</p>
+              <ul class="flex flex-col gap-2" role="list">
+                {exp.highlights.map((h) => (
+                  <li class="text-sm text-text-muted leading-[1.65] flex gap-2 items-start before:content-['▹'] before:text-accent before:font-mono before:text-xs before:flex-shrink-0 before:mt-[3px]">
+                    {h}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- -------------------------------------------------------------------- -->
+  <!-- Side Projects                                                          -->
+  <!-- -------------------------------------------------------------------- -->
+  <section class="section border-t border-bg-border" aria-labelledby="projects-heading">
+    <div class="max-w-[var(--width-wide)] mx-auto px-6">
+      <p class="font-mono text-xs text-accent uppercase tracking-[0.1em] mb-2">Side projects</p>
+      <h2 id="projects-heading" class="text-2xl font-semibold mb-3">Built for fun</h2>
+      <p class="text-base text-text-muted max-w-[58ch] leading-[1.65] mb-10">
+        When I'm not at work, I build things. Whether it's a tool for my sports league or an AI experiment,
+        my curiosity doesn't switch off outside business hours.
+      </p>
+      <div class="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-6 mb-6">
+        {projects.map((project) => (
+          <article class="bg-bg-surface border border-bg-border rounded-lg p-6 flex flex-col gap-4 hover:border-accent transition-colors duration-150">
+            <div class="flex items-start justify-between gap-4">
+              <h3 class="text-lg font-semibold font-mono text-accent">{project.name}</h3>
+              <a
+                href={project.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`View ${project.name} on GitHub`}
+                class="font-mono text-xs text-text-muted hover:text-accent transition-colors duration-150 whitespace-nowrap flex-shrink-0 mt-1"
+              >
+                GitHub →
+              </a>
+            </div>
+            <p class="text-sm text-text-muted leading-[1.65] flex-1">{project.description}</p>
+            <div class="flex flex-wrap gap-1.5 mt-auto pt-2">
+              {project.stack.map((tech) => (
+                <span class="font-mono text-xs text-accent bg-[rgba(63,185,80,0.1)] border border-[rgba(63,185,80,0.2)] rounded px-2 py-0.5">
+                  {tech}
+                </span>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+      <a
+        href={SITE.social.github}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="font-mono text-sm text-text-muted hover:text-accent transition-colors duration-150"
+      >
+        Browse all repositories on GitHub →
+      </a>
+    </div>
+  </section>
+
+  <!-- -------------------------------------------------------------------- -->
+  <!-- Education & Languages                                                  -->
+  <!-- -------------------------------------------------------------------- -->
+  <section class="section border-t border-bg-border" aria-labelledby="education-heading">
+    <div class="max-w-[var(--width-wide)] mx-auto px-6">
+      <p class="font-mono text-xs text-accent uppercase tracking-[0.1em] mb-2">Background</p>
+      <h2 id="education-heading" class="text-2xl font-semibold mb-8">Education & languages</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-[580px]">
+        <div class="bg-bg-surface border border-bg-border rounded-lg p-6">
+          <h3 class="font-mono text-xs text-text-muted uppercase tracking-[0.08em] mb-4">Education</h3>
+          <!-- TODO: update with your actual degree name and institution -->
+          <p class="text-base font-semibold text-text-primary">Bachelor's Degree</p>
+          <p class="text-sm text-text-muted mt-1">Computer Science</p>
+        </div>
+        <div class="bg-bg-surface border border-bg-border rounded-lg p-6">
+          <h3 class="font-mono text-xs text-text-muted uppercase tracking-[0.08em] mb-4">Languages</h3>
+          <ul class="flex flex-col gap-3" role="list">
+            <li class="flex items-center justify-between">
+              <span class="text-sm text-text-primary">French</span>
+              <span class="font-mono text-xs text-accent">Native</span>
+            </li>
+            <li class="flex items-center justify-between border-t border-bg-border pt-3">
+              <span class="text-sm text-text-primary">English</span>
+              <span class="font-mono text-xs text-accent">Professional</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- -------------------------------------------------------------------- -->
+  <!-- CV Download CTA                                                        -->
+  <!-- -------------------------------------------------------------------- -->
+  <section class="section border-t border-bg-border" aria-labelledby="cv-heading">
+    <div class="max-w-[var(--width-prose)] mx-auto px-6">
+      <div class="bg-bg-surface border border-bg-border rounded-lg p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div>
+          <p class="font-mono text-xs text-accent uppercase tracking-[0.1em] mb-2">Résumé</p>
+          <h2 id="cv-heading" class="text-xl font-semibold mb-2">Download my CV</h2>
+          <p class="text-sm text-text-muted max-w-[44ch] leading-[1.65]">
+            Full work history, skills, and references available as a PDF — ready to forward to your team.
+          </p>
+        </div>
+        <a
+          href="/resume.pdf"
+          download
+          class="inline-flex items-center gap-2 bg-accent text-bg px-6 py-3 rounded-md text-sm font-semibold hover:bg-accent-dim active:scale-[0.98] transition-[background-color,transform] duration-150 flex-shrink-0"
+          aria-label="Download résumé as PDF"
+        >
+          <span aria-hidden="true">↓</span>
+          Download résumé
+        </a>
+      </div>
+    </div>
+  </section>
+
+</BaseLayout>
