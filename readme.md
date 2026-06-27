@@ -60,6 +60,7 @@ pnpm astro check
 - [] Finalize CSS for desktop/tablet/mobile
 - [] Create and validate SEO
 - [] Create contact form endpoint
+- [] Download Resume
 - [] Test build
 - [] Create real blog entries
 - [] Validate final texts
