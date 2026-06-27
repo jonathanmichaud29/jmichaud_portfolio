@@ -9,6 +9,6 @@ export const SITE = {
     linkedin: "https://www.linkedin.com/in/jlmichaud/",
   },
   blog: {
-    pageSize: 1,
+    pageSize: 5,
   },
 } as const;

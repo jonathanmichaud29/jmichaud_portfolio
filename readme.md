@@ -22,6 +22,9 @@ Portfolio Website
 ### Local HMR
 
 **Homepage** : http://localhost:4321/
+**About** : http://localhost:4321/about
+
+**Blog** : http://localhost:4321/blog
 **Single post** : http://localhost:4321/blog/hello-world
 **Single post in a serie** : http://localhost:4321/blog/docker-networking-pt1
 **Serie's posts** : http://localhost:4321/series/docker-networking
@@ -29,10 +32,12 @@ Portfolio Website
 ### Production build simulation
 
 **Homepage** : http://localhost:8080/
-\*\*
 
-## Local Docker usefull commands
+## Local usefull commands
 
+### Docker
+
+```bash
 **# Which containers are running**
 docker-compose ps
 
@@ -41,3 +46,21 @@ docker-compose logs nginx
 
 **# Check Astro Node logs**
 docker-compose logs node
+```
+
+### Astro
+
+```bash
+# Validate Typescript and Schema
+pnpm astro check
+```
+
+# TODO
+
+- [] Finalize CSS for desktop/tablet/mobile
+- [] Create and validate SEO
+- [] Create contact form endpoint
+- [] Test build
+- [] Create real blog entries
+- [] Validate final texts
+- [] Deploy Production
