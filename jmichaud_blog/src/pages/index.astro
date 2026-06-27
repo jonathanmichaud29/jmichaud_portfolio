@@ -93,84 +93,89 @@ const techCategories = [
   <!-- Currently Working On                                                   -->
   <!-- -------------------------------------------------------------------- -->
   {activeSeries && (
-    <section class="section" aria-labelledby="working-heading">
+    <section class="section pb-24" aria-labelledby="working-heading">
       <div class="max-w-[var(--width-wide)] mx-auto px-6">
-        <p class="font-mono text-xs text-accent uppercase tracking-[0.1em] mb-0">
+        <p class="font-mono text-xs text-accent uppercase tracking-[0.1em] my-4">
           Currently working on
         </p>
-        <div class="relative bg-bg-surface border border-bg-border rounded-lg p-6 hover:border-accent transition-colors duration-150 overflow-hidden">
+        <div class="bg-bg-surface border border-bg-border rounded-lg p-6 hover:border-accent transition-colors duration-150">
 
-          <div class="flex items-start justify-between gap-8 flex-wrap">
-            <div class="flex-1 min-w-0">
-              <!-- Meta -->
-              <div class="flex items-center flex-wrap gap-3 text-xs text-text-muted font-mono mb-3">
-                <span class="font-mono text-xs text-accent bg-[rgba(63,185,80,0.1)] border border-[rgba(63,185,80,0.2)] rounded px-2 py-0.5 whitespace-nowrap">
-                  Series
-                </span>
-                <span class="text-bg-border">·</span>
-                <span>
-                  {activeSeries.data.order.length}{" "}
-                  {activeSeries.data.order.length === 1 ? "part" : "parts"} published
-                </span>
-                {activeSeries.data.demoUrl && (
-                  <>
-                    <span class="text-bg-border">·</span>
-                    <a
-                      href={activeSeries.data.demoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="text-text-muted underline underline-offset-[3px] hover:text-accent transition-colors duration-150"
-                    >Live demo</a>
-                  </>
-                )}
-                {activeSeries.data.repoUrl && (
-                  <>
-                    <span class="text-bg-border">·</span>
-                    <a
-                      href={activeSeries.data.repoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="text-text-muted underline underline-offset-[3px] hover:text-accent transition-colors duration-150"
-                    >GitHub</a>
-                  </>
-                )}
-              </div>
+  <!-- Row 1: Meta + Active indicator -->
+  <div class="grid grid-cols-[1fr_auto] gap-x-8 gap-y-2 mb-4">
+    <!-- Meta (col 1) -->
+    <div class="flex items-center flex-wrap gap-3 text-xs text-text-muted font-mono">
+      <span class="font-mono text-xs text-accent bg-[rgba(63,185,80,0.1)] border border-[rgba(63,185,80,0.2)] rounded px-2 py-0.5 whitespace-nowrap">
+        Series
+      </span>
+      <span class="text-bg-border">·</span>
+      <span>
+        {activeSeries.data.order.length}{" "}
+        {activeSeries.data.order.length === 1 ? "part" : "parts"} published
+      </span>
+      {activeSeries.data.demoUrl && (
+        <>
+          <span class="text-bg-border">·</span>
+          <a
+            href={activeSeries.data.demoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-text-muted underline underline-offset-[3px] hover:text-accent transition-colors duration-150"
+          >Live demo</a>
+        </>
+      )}
+      {activeSeries.data.repoUrl && (
+        <>
+          <span class="text-bg-border">·</span>
+          <a
+            href={activeSeries.data.repoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-text-muted underline underline-offset-[3px] hover:text-accent transition-colors duration-150"
+          >GitHub</a>
+        </>
+      )}
+    </div>
 
-              <h2 class="text-xl font-semibold mb-3">{activeSeries.data.title}</h2>
-              <p class="text-base text-text-muted leading-[1.6] max-w-[60ch]">
-                {activeSeries.data.description}
-              </p>
-            </div>
+    <!-- Active indicator (col 2) -->
+    <div class="hidden sm:flex items-center gap-2" aria-hidden="true">
+      <span
+        class="w-2 h-2 rounded-full bg-accent flex-shrink-0"
+        style="animation: pulse 2s ease-in-out infinite;"
+      />
+      <span class="font-mono text-xs text-accent uppercase tracking-[0.08em]">Active</span>
+    </div>
+  </div>
 
-            <!-- Actions -->
-            <div class="flex flex-col gap-3 flex-shrink-0 self-center">
-              <a
-                href={`/series/${activeSeries.data.slug}`}
-                class="inline-flex items-center border border-bg-border text-text-primary px-6 py-3 rounded-md text-sm font-medium hover:border-accent hover:text-accent transition-[border-color,color] duration-150"
-              >
-                View series
-              </a>
-              {activeSeriesLatestPost && (
-                <a
-                  href={`/blog/${activeSeriesLatestPost.id}`}
-                  class="inline-flex items-center bg-accent text-bg px-6 py-3 rounded-md text-sm font-semibold hover:bg-accent-dim active:scale-[0.98] transition-[background-color,transform] duration-150"
-                >
-                  Read latest part
-                </a>
-              )}
-            </div>
-          </div>
+  <!-- Row 2: Title + description | Buttons -->
+  <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-x-8 gap-y-6 items-center">
+    <!-- Title + description (col 1) -->
+    <div class="min-w-0">
+      <h2 class="text-xl font-semibold mb-3">{activeSeries.data.title}</h2>
+      <p class="text-base text-text-muted leading-[1.6] max-w-[60ch]">
+        {activeSeries.data.description}
+      </p>
+    </div>
 
-          <!-- Active pulse indicator -->
-          <div class="absolute top-4 right-4 flex items-center gap-2" aria-hidden="true">
-            <span
-              class="w-2 h-2 rounded-full bg-accent"
-              style="animation: pulse 2s ease-in-out infinite;"
-            />
-            <span class="font-mono text-xs text-accent uppercase tracking-[0.08em]">Active</span>
-          </div>
+    <!-- Actions (col 2) -->
+    <div class="flex flex-col gap-3 flex-shrink-0 ">
+      <a
+        href={`/series/${activeSeries.data.slug}`}
+        class="inline-flex items-center justify-center border border-bg-border text-text-primary px-6 py-3 rounded-md text-sm font-medium hover:border-accent hover:text-accent transition-[border-color,color] duration-150"
+      >
+        View series
+      </a>
+      {activeSeriesLatestPost && (
+        <a
+          href={`/blog/${activeSeriesLatestPost.id}`}
+          class="inline-flex items-center justify-center bg-accent text-bg px-6 py-3 rounded-md text-sm font-semibold hover:bg-accent-dim active:scale-[0.98] transition-[background-color,transform] duration-150"
+        >
+          Read latest part
+        </a>
+      )}
+    </div>
+  </div>
 
-        </div>
+</div>
       </div>
     </section>
   )}
