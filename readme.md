@@ -57,10 +57,10 @@ pnpm astro check
 
 # TODO
 
-- [] Finalize CSS for desktop/tablet/mobile
+- [x] Finalize CSS for desktop/tablet/mobile
 - [] Create and validate SEO
 - [] Create contact form endpoint
-- [] Download Resume
+- [x] Download Resume
 - [] Test build
 - [] Create real blog entries
 - [] Validate final texts

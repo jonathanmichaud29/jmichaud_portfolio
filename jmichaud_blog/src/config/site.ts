@@ -12,3 +12,38 @@ export const SITE = {
     pageSize: 5,
   },
 } as const;
+
+export const CV_TECHS = [
+  {
+    label: "Languages",
+    items: ["PHP", "Python", "JavaScript", "TypeScript"],
+  },
+  {
+    label: "Databases",
+    items: ["MySQL", "PostgreSQL", "ElasticSearch"],
+  },
+  {
+    label: "Technologies",
+    items: [
+      "React",
+      "Node.js",
+      "RESTful API",
+      "Redis",
+      "MaterialUI",
+      "WordPress",
+      "CodeIgniter",
+    ],
+  },
+  {
+    label: "Environments",
+    items: [
+      "Docker",
+      "Kubernetes",
+      "GitLab CI",
+      "AWS",
+      "Debian",
+      "Sentry",
+      "Nagios",
+    ],
+  },
+] as const;
