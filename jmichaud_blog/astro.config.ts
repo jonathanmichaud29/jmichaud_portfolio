@@ -1,5 +1,6 @@
 // @ts-check
-import { defineConfig } from "astro/config";
+import { defineConfig, fontProviders } from "astro/config";
+import { unified } from "@astrojs/markdown-remark"; // new
 import react from "@astrojs/react";
 import mdx from "@astrojs/mdx";
 import sitemap from "@astrojs/sitemap";
@@ -12,13 +13,34 @@ export default defineConfig({
   site: "https://www.jmichaud.ca",
   output: "server",
 
+  fonts: [
+    {
+      provider: fontProviders.google(),
+      name: "Inter",
+      cssVariable: "--font-inter",
+      weights: [400, 500, 600],
+      styles: ["normal"],
+      fallbacks: ["system-ui", "sans-serif"],
+    },
+    {
+      provider: fontProviders.google(),
+      name: "JetBrains Mono",
+      cssVariable: "--font-jetbrains-mono",
+      weights: [400, 500],
+      styles: ["normal"],
+      fallbacks: ["monospace"],
+    },
+  ],
+
   vite: {
     // Type assertion needed: @tailwindcss/vite plugin type doesn't align with Vite's PluginOption
     plugins: [tailwindcss() as any],
   },
 
   markdown: {
-    remarkPlugins: [remarkReadingTime],
+    processor: unified({
+      remarkPlugins: [remarkReadingTime],
+    }),
   },
 
   integrations: [react(), mdx(), sitemap()],

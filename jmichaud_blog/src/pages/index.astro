@@ -45,24 +45,6 @@ if (activeSeries) {
 
 const latestPosts = await getLatestFeedItems(3);
 
-const techCategories = [
-  {
-    label: "Frontend",
-    items: ["Astro", "React", "TypeScript", "Tailwind CSS"],
-  },
-  {
-    label: "Backend",
-    items: ["Node.js", "PHP", "REST APIs", "SSR"],
-  },
-  {
-    label: "Infrastructure",
-    items: ["Docker", "Kubernetes", "ArgoCD", "Nginx"],
-  },
-  {
-    label: "Tooling & DevOps",
-    items: ["HashiCorp Vault", "Helm", "GitHub Actions", "pnpm"],
-  },
-];
 ---
 
 <BaseLayout

@@ -53,6 +53,15 @@ docker-compose logs node
 ```bash
 # Validate Typescript and Schema
 pnpm astro check
+
+# Build the application for prod usage
+pnpm build
+
+# Create a production environment, locally at http://172.20.0.2:4321
+make prod-local
+
+#
+make dev
 ```
 
 # TODO
