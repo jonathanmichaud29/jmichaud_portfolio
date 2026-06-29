@@ -2,123 +2,223 @@
 /**
  * BlogPostCard.astro
  *
- * Renders a single blog post as a card for listing pages (/blog, /blog/page/N).
- * Accepts a CollectionEntry<"blog"> directly — not a FeedItem — because the
- * /blog index works with raw collection entries for type-safe field access.
+ * Unified card component used on all listing surfaces:
+ *   - /blog index + paginated pages
+ *   - /series/[seriesSlug] parts list
+ *   - index.astro "Latest posts" feed
  *
- * Series membership is shown as a badge when post.data.series is set.
- * The series collection entry is not resolved here — we only need the id
- * for the badge text and a link to /series/[slug]. However, we only have
- * the series reference id (e.g. "docker-networking"), not the slug or title
- * from the series collection entry. We use the series id as the slug since
- * the series schema enforces id === slug by convention (both are kebab-case
- * and the series index.json sets them identically for the docker-networking
- * fixture).
+ * Layout — two rows, always:
+ *   Row 1: meta chips (type badge, series badge, date, reading time,
+ *           proficiency level, optional repo/demo links) + optional
+ *           "Active" pulse indicator when series.status === "active"
+ *   Row 2: title + description (col 1) | action buttons (col 2)
  *
- * If you later need the full series title on the card, pass the series
- * CollectionEntry as an optional prop and fall back to the id if absent.
+ * Props:
+ *   post    — the blog post entry (required)
+ *   series  — the resolved series entry the post belongs to, or null/undefined
+ *             for standalone posts. Must be resolved by the call site — this
+ *             component does no data fetching.
+ *
+ * Button rules:
+ *   - "View series" rendered only when series is set
+ *   - "Read more"   always rendered, points to /blog/[post.id]
+ *
+ * Call sites that have series context available:
+ *   - /series/[seriesSlug].astro  — series is already in scope
+ *   - /blog/index.astro           — must join series collection via Map
+ *   - /blog/page/[page].astro     — must join series collection via Map
+ *   - index.astro                 — FeedItem already carries series entry
  */
 
 import type { CollectionEntry } from "astro:content";
 
 interface Props {
   post: CollectionEntry<"blog">;
+  series?: CollectionEntry<"series"> | null;
 }
 
-const { post } = Astro.props;
+const { post, series = null } = Astro.props;
 
-// post.data.series is a reference object { id, collection } when set,
-// or undefined for standalone posts.
-const seriesId = post.data.series?.id;
+const isActive = series?.data.status === "active";
+
+// Proficiency level label — only on tech-article type
+const proficiencyLevel =
+  post.data.type === "tech-article" ? post.data.proficiencyLevel : undefined;
 ---
 
 <article
-  class="bg-bg-surface border border-bg-border rounded-lg p-6 flex flex-col gap-3 hover:border-accent transition-colors duration-150"
+  class="bg-bg-surface border border-bg-border rounded-lg p-6 hover:border-accent transition-colors duration-150"
 >
-  <!-- Post meta -->
-  <div
-    class="flex items-center flex-wrap gap-3 text-xs text-text-muted font-mono"
-  >
-    {/* Type badge */}
-    <span
-      class="font-mono text-xs text-accent bg-[rgba(63,185,80,0.1)] border border-[rgba(63,185,80,0.2)] rounded px-2 py-0.5 whitespace-nowrap"
+  <!-- ------------------------------------------------------------------ -->
+  <!-- Row 1: meta chips + optional Active indicator                        -->
+  <!-- ------------------------------------------------------------------ -->
+  <div class="grid grid-cols-[1fr_auto] gap-x-8 gap-y-2 mb-4">
+    <!-- Meta chips -->
+    <div
+      class="flex items-center flex-wrap gap-3 text-xs text-text-muted font-mono"
     >
-      {post.data.type === "tech-article" ? "Tech" : "Post"}
-    </span>
+      <!-- Type badge -->
+      <span
+        class="font-mono text-xs text-accent bg-[rgba(63,185,80,0.1)] border border-[rgba(63,185,80,0.2)] rounded px-2 py-0.5 whitespace-nowrap"
+      >
+        {
+          series
+            ? "Series"
+            : post.data.type === "tech-article"
+              ? "Tech"
+              : "Post"
+        }
+      </span>
 
-    {/* Series badge — shown when the post belongs to a series */}
-    {
-      seriesId && (
-        <>
-          <span class="text-bg-border">·</span>
-          <a
-            href={`/series/${seriesId}`}
-            class="font-mono text-xs text-text-muted bg-bg border border-bg-border rounded px-2 py-0.5 whitespace-nowrap hover:border-accent hover:text-accent transition-[border-color,color] duration-150"
-          >
-            Series
-            {post.data.seriesPart !== undefined && (
-              <span> · Part {post.data.seriesPart}</span>
-            )}
-          </a>
-        </>
-      )
-    }
-
-    <span class="text-bg-border">·</span>
-    <time datetime={post.data.publishedAt.toISOString()}>
+      <!-- Parts count — only shown for series cards -->
       {
-        post.data.publishedAt.toLocaleDateString("en-CA", {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-        })
+        series && (
+          <>
+            <span class="text-bg-border">·</span>
+            <span>
+              {series.data.order.length}{" "}
+              {series.data.order.length === 1 ? "part" : "parts"} published
+            </span>
+          </>
+        )
       }
-    </time>
 
-    {
-      post.data.readingTime !== undefined && (
-        <>
-          <span class="text-bg-border">·</span>
-          <span>{post.data.readingTime} min read</span>
-        </>
-      )
-    }
+      <!-- Date -->
+      <span class="text-bg-border">·</span>
+      <time datetime={post.data.publishedAt.toISOString()}>
+        {
+          post.data.publishedAt.toLocaleDateString("en-CA", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          })
+        }
+      </time>
 
+      <!-- Reading time -->
+      {
+        post.data.readingTime !== undefined && (
+          <>
+            <span class="text-bg-border">·</span>
+            <span>{post.data.readingTime} min read</span>
+          </>
+        )
+      }
+
+      <!-- Proficiency level (tech-article only) -->
+      {
+        proficiencyLevel && (
+          <>
+            <span class="text-bg-border">·</span>
+            <span class="capitalize">{proficiencyLevel}</span>
+          </>
+        )
+      }
+
+      <!-- Optional series links: repo + demo -->
+      {
+        series?.data.demoUrl && (
+          <>
+            <span class="text-bg-border">·</span>
+            <a
+              href={series.data.demoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-text-muted underline underline-offset-[3px] hover:text-accent transition-colors duration-150"
+            >
+              Live demo
+            </a>
+          </>
+        )
+      }
+      {
+        series?.data.repoUrl && (
+          <>
+            <span class="text-bg-border">·</span>
+            <a
+              href={series.data.repoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-text-muted underline underline-offset-[3px] hover:text-accent transition-colors duration-150"
+            >
+              GitHub
+            </a>
+          </>
+        )
+      }
+
+      <!-- Tags — capped at 4, shown on standalone posts only.
+           On series cards the meta row is already dense; tags would
+           crowd it. Tags are surfaced on the individual post page. -->
+      {
+        !series && post.data.tags.length > 0 && (
+          <>
+            <span class="text-bg-border">·</span>
+            {post.data.tags.slice(0, 4).map((tag) => (
+              <span class="font-mono text-xs text-accent bg-[rgba(63,185,80,0.1)] border border-[rgba(63,185,80,0.2)] rounded px-2 py-0.5 whitespace-nowrap">
+                {tag}
+              </span>
+            ))}
+          </>
+        )
+      }
+    </div>
+
+    <!-- Active pulse — only when series is active -->
     {
-      post.data.type === "tech-article" && post.data.proficiencyLevel && (
-        <>
-          <span class="text-bg-border">·</span>
-          <span class="capitalize">{post.data.proficiencyLevel}</span>
-        </>
+      isActive && (
+        <div class="hidden sm:flex items-center gap-2" aria-hidden="true">
+          <span
+            class="w-2 h-2 rounded-full bg-accent flex-shrink-0"
+            style="animation: pulse 2s ease-in-out infinite;"
+          />
+          <span class="font-mono text-xs text-accent uppercase tracking-[0.08em]">
+            Active
+          </span>
+        </div>
       )
     }
   </div>
 
-  <!-- Title -->
-  <h2 class="text-xl font-semibold leading-[1.3]">
-    <a
-      href={`/blog/${post.id}`}
-      class="text-text-primary hover:text-accent transition-colors duration-150"
-    >
-      {post.data.title}
-    </a>
-  </h2>
+  <!-- ------------------------------------------------------------------ -->
+  <!-- Row 2: title + description | action buttons                          -->
+  <!-- ------------------------------------------------------------------ -->
+  <div
+    class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-x-8 gap-y-6 items-center"
+  >
+    <!-- Title + description -->
+    <div class="min-w-0">
+      <h2 class="text-xl font-semibold leading-[1.3] mb-3">
+        <a
+          href={`/blog/${post.id}`}
+          class="text-text-primary hover:text-accent transition-colors duration-150"
+        >
+          {post.data.title}
+        </a>
+      </h2>
+      <p class="text-base text-text-muted leading-[1.6] max-w-[60ch]">
+        {post.data.description}
+      </p>
+    </div>
 
-  <!-- Description -->
-  <p class="text-sm text-text-muted leading-[1.6]">
-    {post.data.description}
-  </p>
-
-  <!-- Tags — capped at 4, matching the series page convention -->
-  {
-    post.data.tags.length > 0 && (
-      <div class="flex flex-wrap gap-2 mt-1" aria-label="Tags">
-        {post.data.tags.slice(0, 4).map((tag) => (
-          <span class="font-mono text-xs text-accent bg-[rgba(63,185,80,0.1)] border border-[rgba(63,185,80,0.2)] rounded px-2 py-0.5 whitespace-nowrap">
-            {tag}
-          </span>
-        ))}
-      </div>
-    )
-  }
+    <!-- Action buttons -->
+    <div class="flex flex-col gap-3 flex-shrink-0">
+      {
+        series && (
+          <a
+            href={`/series/${series.data.slug}`}
+            class="inline-flex items-center justify-center border border-bg-border text-text-primary px-6 py-3 rounded-md text-sm font-medium hover:border-accent hover:text-accent transition-[border-color,color] duration-150"
+          >
+            View series
+          </a>
+        )
+      }
+      <a
+        href={`/blog/${post.id}`}
+        class="inline-flex items-center justify-center bg-accent text-bg px-6 py-3 rounded-md text-sm font-semibold hover:bg-accent-dim active:scale-[0.98] transition-[background-color,transform] duration-150"
+      >
+        Read more
+      </a>
+    </div>
+  </div>
 </article>

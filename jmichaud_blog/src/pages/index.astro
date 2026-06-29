@@ -5,12 +5,25 @@
  * CSS migration: utilities.css dissolved into Tailwind utility classes
  * inline on each element. Duplicate .btn-primary / .btn-secondary
  * definitions removed. No <style> block remains.
+ *
+ * "Latest posts" section: previously used inline card markup per FeedItem.
+ * Now delegates to BlogPostCard for consistency with all other listing surfaces.
+ *
+ * FeedItem → BlogPostCard prop mapping:
+ *   kind === "standalone"  → post = item.post,   series = null
+ *   kind === "series"      → post = item.latestPost, series = item.series
+ *
+ * The "Currently working on" block intentionally keeps its own markup —
+ * it is a featured hero card, not a list item, and uses an <h2> heading
+ * appropriate to the page hierarchy. BlogPostCard uses <h2> too, which
+ * would create a heading-level collision if used here.
  */
 
 import BaseLayout from "../layouts/BaseLayout.astro";
+import BlogPostCard from "../components/BlogPostCard.astro";
 import { getCollection } from "astro:content";
 import type { CollectionEntry } from "astro:content";
-import { SITE } from "../config/site";
+import { SITE, CV_TECHS } from "../config/site";
 import { getLatestFeedItems } from "../lib/content/queries";
 
 const allSeries = await getCollection("series");
@@ -91,6 +104,9 @@ const techCategories = [
 
   <!-- -------------------------------------------------------------------- -->
   <!-- Currently Working On                                                   -->
+  <!-- This block is intentionally NOT replaced by BlogPostCard.             -->
+  <!-- It is a featured hero section with its own heading hierarchy and      -->
+  <!-- layout purpose (prominent single-series spotlight, not a list item).  -->
   <!-- -------------------------------------------------------------------- -->
   {activeSeries && (
     <section class="section pb-24" aria-labelledby="working-heading">
@@ -150,14 +166,14 @@ const techCategories = [
           <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-x-8 gap-y-6 items-center">
             <!-- Title + description (col 1) -->
             <div class="min-w-0">
-              <h2 class="text-xl font-semibold mb-3">{activeSeries.data.title}</h2>
+              <h2 id="working-heading" class="text-xl font-semibold mb-3">{activeSeries.data.title}</h2>
               <p class="text-base text-text-muted leading-[1.6] max-w-[60ch]">
                 {activeSeries.data.description}
               </p>
             </div>
 
             <!-- Actions (col 2) -->
-            <div class="flex flex-col gap-3 flex-shrink-0 ">
+            <div class="flex flex-col gap-3 flex-shrink-0">
               <a
                 href={`/series/${activeSeries.data.slug}`}
                 class="inline-flex items-center justify-center border border-bg-border text-text-primary px-6 py-3 rounded-md text-sm font-medium hover:border-accent hover:text-accent transition-[border-color,color] duration-150"
@@ -181,33 +197,43 @@ const techCategories = [
   )}
 
   <!-- -------------------------------------------------------------------- -->
-  <!-- Tech stack                                                             -->
+  <!-- Skills                                                                 -->
   <!-- -------------------------------------------------------------------- -->
-  <section class="section border-t border-bg-border" aria-labelledby="tech-heading">
+  <section
+    class="section border-t border-bg-border"
+    aria-labelledby="skills-heading"
+  >
     <div class="max-w-[var(--width-wide)] mx-auto px-6 py-12">
-      <p class="font-mono text-xs text-accent uppercase tracking-[0.1em] mb-4">Technologies</p>
-      <h2 id="tech-heading" class="text-2xl font-semibold mb-8">What I work with</h2>
+      <p class="font-mono text-xs text-accent uppercase tracking-[0.1em] mb-2">
+        Technologies
+      </p>
+      <h2 id="skills-heading" class="text-2xl font-semibold mb-8">What I work with</h2>
       <div class="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-8">
-        {techCategories.map((cat) => (
-          <div>
-            <h3 class="font-mono text-xs text-text-muted uppercase tracking-[0.08em] mb-4 font-medium">
-              {cat.label}
-            </h3>
-            <ul class="flex flex-col gap-2" role="list">
-              {cat.items.map((item) => (
-                <li class="text-sm text-text-primary py-2 border-b border-bg-border flex items-center gap-2 before:content-['▹'] before:text-accent before:font-mono before:text-xs before:flex-shrink-0">
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+        {
+          CV_TECHS.map((cat) => (
+            <div>
+              <h3 class="font-mono text-xs text-text-muted uppercase tracking-[0.08em] mb-4 font-medium">
+                {cat.label}
+              </h3>
+              <ul class="flex flex-col gap-2" role="list">
+                {cat.items.map((item) => (
+                  <li class="text-sm text-text-primary py-2 border-b border-bg-border flex items-center gap-2 before:content-['▹'] before:text-accent before:font-mono before:text-xs before:flex-shrink-0">
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
+        }
       </div>
     </div>
   </section>
 
   <!-- -------------------------------------------------------------------- -->
   <!-- Latest from the blog                                                   -->
+  <!-- FeedItem → BlogPostCard mapping:                                       -->
+  <!--   kind === "series"     → post=latestPost,  series=item.series        -->
+  <!--   kind === "standalone" → post=item.post,   series=null               -->
   <!-- -------------------------------------------------------------------- -->
   {latestPosts.length > 0 && (
     <section class="section border-t border-bg-border" aria-labelledby="blog-heading">
@@ -228,57 +254,11 @@ const techCategories = [
 
         <div class="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-6">
           {latestPosts.map((item) => (
-            <article class="bg-bg-surface border border-bg-border rounded-lg p-6 flex flex-col gap-3 hover:border-accent transition-colors duration-150">
-
-              <!-- Meta -->
-              <div class="flex items-center flex-wrap gap-3 text-xs text-text-muted font-mono">
-                {item.kind === "series" ? (
-                  <span class="font-mono text-xs text-accent bg-[rgba(63,185,80,0.1)] border border-[rgba(63,185,80,0.2)] rounded px-2 py-0.5 whitespace-nowrap">
-                    Series · {item.partCount} {item.partCount === 1 ? "part" : "parts"}
-                  </span>
-                ) : (
-                  <span class="font-mono text-xs text-accent bg-[rgba(63,185,80,0.1)] border border-[rgba(63,185,80,0.2)] rounded px-2 py-0.5 whitespace-nowrap">
-                    Post
-                  </span>
-                )}
-                <span class="text-bg-border">·</span>
-                <time datetime={item.publishedAt.toISOString()}>
-                  {item.publishedAt.toLocaleDateString("en-CA", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </time>
-                {item.kind === "standalone" && item.post.data.readingTime && (
-                  <>
-                    <span class="text-bg-border">·</span>
-                    <span>{item.post.data.readingTime} min read</span>
-                  </>
-                )}
-              </div>
-
-              <h3 class="text-lg font-semibold leading-[1.3]">
-                <a
-                  href={item.href}
-                  class="text-text-primary hover:text-accent transition-colors duration-150"
-                >{item.title}</a>
-              </h3>
-
-              <p class="text-sm text-text-muted leading-[1.6] flex-1">
-                {item.description}
-              </p>
-
-              <div class="flex flex-col gap-3 flex-shrink-0 ">
-               
-                <a
-                  href={`${item.href}`}
-                  class="self-start inline-flex items-center justify-center bg-accent text-bg px-6 py-3 rounded-md text-sm font-semibold hover:bg-accent-dim active:scale-[0.98] transition-[background-color,transform] duration-150"
-                >
-                  Read more
-                </a>
-              </div>
-
-            </article>
+            item.kind === "series" ? (
+              <BlogPostCard post={item.latestPost} series={item.series} />
+            ) : (
+              <BlogPostCard post={item.post} series={null} />
+            )
           ))}
         </div>
       </div>

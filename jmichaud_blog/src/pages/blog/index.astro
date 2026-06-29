@@ -20,11 +20,14 @@
  * shared getAllPostsSortedDesc() import.
  *
  * All posts are shown (standalone + series members). See queries.ts for
- * the rationale. Series membership is rendered as a badge on BlogPostCard.
+ * the rationale. Series membership is resolved via a Map for O(1) lookup
+ * and passed to BlogPostCard so the two-row layout can render correctly.
  */
 
 export const prerender = true;
 
+import { getCollection } from "astro:content";
+import type { CollectionEntry } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Pagination from "../../components/Pagination.astro";
 import BlogPostCard from "../../components/BlogPostCard.astro";
@@ -32,11 +35,17 @@ import { getBreadcrumbSchema } from "../../lib/schema";
 import { getAllPostsSortedDesc } from "../../lib/content/queries";
 import { SITE } from "../../config/site";
 import type { Page } from "astro";
-import type { CollectionEntry } from "astro:content";
 
 const PAGE_SIZE = SITE.blog.pageSize;
 
-const allPosts = await getAllPostsSortedDesc();
+const [allPosts, allSeries] = await Promise.all([
+  getAllPostsSortedDesc(),
+  getCollection("series"),
+]);
+
+// Index series by id for O(1) lookup per post — avoids a nested find().
+const seriesById = new Map(allSeries.map((s) => [s.id, s]));
+
 const pagePosts = allPosts.slice(0, PAGE_SIZE);
 const totalPages = Math.max(1, Math.ceil(allPosts.length / PAGE_SIZE));
 
@@ -60,7 +69,7 @@ const page: Page<CollectionEntry<"blog">> = {
     prev: undefined, // no previous — we are page 1
     next: totalPages > 1 ? "/blog/page/2" : undefined,
     first: undefined, // undefined when on first page (matches Astro paginate() behaviour)
-    last: totalPages > 1 ? `/blog/page/${totalPages}` : undefined, // undefined when there is only one page
+    last: totalPages > 1 ? `/blog/page/${totalPages}` : undefined,
   },
 };
 
@@ -121,11 +130,18 @@ const breadcrumbSchema = getBreadcrumbSchema([{ name: "Blog", path: "/blog" }]);
         </p>
       ) : (
         <ol class="flex flex-col gap-4" aria-label="Blog posts">
-          {pagePosts.map((post) => (
-            <li>
-              <BlogPostCard post={post} />
-            </li>
-          ))}
+          {pagePosts.map((post) => {
+            // Resolve the series entry for this post, if any.
+            // post.data.series is a reference object { id, collection } when set.
+            const series = post.data.series
+              ? (seriesById.get(post.data.series.id) ?? null)
+              : null;
+            return (
+              <li>
+                <BlogPostCard post={post} series={series} />
+              </li>
+            );
+          })}
         </ol>
       )
     }
