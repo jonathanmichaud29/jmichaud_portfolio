@@ -1,0 +1,77 @@
+---
+type: tech-article
+title: "AI Instructions — Part 1"
+description: "Introduction to structured instructions, scopes and AI Tools comparisons."
+publishedAt: 2026-04-01
+proficiencyLevel: beginner
+dependencies:
+  - ai
+series: ai-instructions
+seriesPart: 1
+tags:
+  - ai
+  - tips-and-tricks
+---
+
+## What Are AI Instructions?
+
+Structured instructions guide how the AI processes, reasons, and formats its response. Think of them as **dials and levers** on the AI's behavior.
+
+## The Global Scope: What Can Be Controlled?
+
+There are roughly 6 dimensions you can influence:
+
+1. **Output Format & Length** — How the response is structured (prose, lists, tables, code, JSON, markdown) and how long or short it should be.
+2. **Reasoning Depth** — Whether the AI thinks step-by-step, skims the surface, or performs multi-angle analysis before answering.
+3. **Tone & Persona** — Formal, casual, expert, Socratic, devil's advocate, or a specific character or role.
+4. **Scope & Focus** — Broad survey vs. narrow deep-dive; what to include, exclude, or prioritize.
+5. **Output Behavior** — Whether to ask clarifying questions, make assumptions explicit, iterate, self-critique, or stop at a threshold.
+6. **Knowledge & Search Strategy** — How to weight sources, whether to reason from first principles, acknowledge uncertainty, or cite reasoning chains.
+
+## Scopes Unique or Stronger in Specific AI Tools
+
+### 🔧 Tool Use / Function Calling
+
+Claude, GPT-4, Gemini — all support this to varying degrees.
+You can instruct the AI to call defined functions, return structured JSON, or interact with external APIs. Critical for web dev workflows.
+
+### 🖥️ Code Execution (Sandboxed)
+
+ChatGPT (Code Interpreter / Advanced Data Analysis) is strongest here — it actually runs Python in a sandbox. Claude has artifacts with live React/JS preview. Gemini has limited execution.
+
+### 🌐 Web Search / Live Data
+
+Gemini is deeply integrated with Google Search. ChatGPT has browsing. Claude has web search too. Useful when you need current docs, library versions, or CVE data.
+
+### 🎨 Artifacts & Live Preview
+
+Claude-specific — you can generate React, HTML/CSS/JS and see it render inside the conversation. Very powerful for iterative web UI building.
+
+### 📁 File & Project Context
+
+ChatGPT Projects and Claude Projects let you upload files, maintain memory across sessions, and give the AI persistent context about your codebase.
+
+### 🔌 MCP (Model Context Protocol)
+
+Claude-specific (for now) — connects Claude directly to external tools like GitHub, databases, Figma, etc. via standardized servers. Game-changer for web dev pipelines.
+
+### 🧠 Extended Thinking / Deep Reasoning
+
+Claude (extended thinking mode) and ChatGPT o-series models can do slower, deeper reasoning — great for architecture decisions or debugging complex logic.
+
+### 📐 System Prompts / Custom Instructions
+
+All three support this, but behavior differs. Sets persistent rules, personas, or constraints before your conversation starts.
+
+### Comparisons between AI tools
+
+| Scope                | Claude                | ChatGPT           | Gemini         |
+| -------------------- | --------------------- | ----------------- | -------------- |
+| Live code preview    | ✅ Strong (Artifacts) | ⚠️ Limited        | ❌ Weak        |
+| Code execution       | ⚠️ Limited            | ✅ Strong         | ⚠️ Limited     |
+| Web search           | ✅ Yes                | ✅ Yes            | ✅ Very strong |
+| Function calling     | ✅ Yes                | ✅ Yes            | ✅ Yes         |
+| File/project context | ✅ Projects           | ✅ Projects       | ✅ NotebookLM  |
+| MCP integration      | ✅ Native             | ❌ No             | ❌ No          |
+| Deep reasoning       | ✅ Extended thinking  | ✅ o3/o4 models   | ⚠️ Limited     |
+| Memory across chats  | ⚠️ Projects only      | ✅ Memory feature | ⚠️ Limited     |
