@@ -31,7 +31,7 @@ import type { CollectionEntry } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Pagination from "../../components/Pagination.astro";
 import BlogPostCard from "../../components/BlogPostCard.astro";
-import { getBreadcrumbSchema } from "../../lib/schema";
+import { getBreadcrumbSchema, getCollectionPageSchema } from "../../lib/schema";
 import { getAllPostsSortedDesc } from "../../lib/content/queries";
 import { SITE } from "../../config/site";
 import type { Page } from "astro";
@@ -76,13 +76,20 @@ const page: Page<CollectionEntry<"blog">> = {
 const canonicalUrl = `${SITE.url}/blog`;
 
 const breadcrumbSchema = getBreadcrumbSchema([{ name: "Blog", path: "/blog" }]);
+
+const collectionPageSchema = getCollectionPageSchema(
+  "Blog",
+  "Technical articles and posts on full-stack development, infrastructure, and engineering craft.",
+  canonicalUrl,
+  pagePosts
+);
 ---
 
 <BaseLayout
   title="Blog"
   description="Technical articles and posts on full-stack development, infrastructure, and engineering craft."
   canonicalUrl={canonicalUrl}
-  schemaNodes={[breadcrumbSchema]}
+  schemaNodes={[collectionPageSchema, breadcrumbSchema]}
 >
   <div class="max-w-[var(--width-prose)] mx-auto px-6">
     <!-- Breadcrumb -->

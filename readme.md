@@ -72,7 +72,7 @@ make dev-d
 - [] Create contact form endpoint
 - [x] Download Resume
 - [] Test build
-- [] Create real blog entries
+- [x] Create real blog entries
 - [] Validate final texts
 - [] Deploy Production
 

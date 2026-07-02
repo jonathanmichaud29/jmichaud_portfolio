@@ -34,6 +34,7 @@ export { getPersonSchema } from "./person";
 export { getArticleSchema } from "./article";
 export { getBreadcrumbSchema } from "./breadcrumb";
 export { getItemListSchema } from "./itemList";
+export { getCollectionPageSchema } from "./collectionPage";
 
 export type { WebSiteSchema } from "./website";
 export type { PersonSchema } from "./person";
@@ -41,6 +42,7 @@ export type { ArticleSchema } from "./article";
 export type { BreadcrumbSchema } from "./breadcrumb";
 export type { BreadcrumbItem } from "./breadcrumb";
 export type { ItemListSchema } from "./itemList";
+export type { CollectionPageSchema } from "./collectionPage";
 
 // The union of all schema types this module can produce.
 // Extend this when new schema types are added.
@@ -49,7 +51,8 @@ type AnySchema =
   | ReturnType<typeof import("./person").getPersonSchema>
   | ReturnType<typeof import("./article").getArticleSchema>
   | ReturnType<typeof import("./breadcrumb").getBreadcrumbSchema>
-  | ReturnType<typeof import("./itemList").getItemListSchema>;
+  | ReturnType<typeof import("./itemList").getItemListSchema>
+  | ReturnType<typeof import("./collectionPage").getCollectionPageSchema>;
 
 /**
  * Combines multiple schema objects into a single JSON-LD @graph.
