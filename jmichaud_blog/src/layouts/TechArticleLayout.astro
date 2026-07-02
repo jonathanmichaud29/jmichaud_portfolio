@@ -213,6 +213,9 @@ const level = proficiencyLevel ? levelConfig[proficiencyLevel] : null;
       <div class="prose prose-invert max-w-none">
         <slot />
       </div>
+      <script>
+        import "../scripts/table-scroll.ts";
+      </script>
 
       {series && <NextArticle post={post} series={series} />}
     </article>
