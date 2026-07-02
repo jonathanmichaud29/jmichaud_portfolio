@@ -18,7 +18,7 @@
   {
     "$schema": "./series.schema.json",
     "id": "ai-instructions",
-    "title": "Tips & Tricks with AI Structured Instructions",
+    "title": "AI Structured Instructions",
     "slug": "ai-instructions",
     "description": "How can we change the AI behavior in order to have better results, fine-tune to our needs",
     "publishedAt": "2026-04-01",

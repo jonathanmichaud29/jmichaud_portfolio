@@ -11,6 +11,8 @@
 
 import type { CollectionEntry } from "astro:content";
 import BaseLayout from "./BaseLayout.astro";
+import SeriesTimeline from "../components/SeriesTimeline.astro";
+import NextArticle from "../components/NextArticle.astro";
 import { getArticleSchema, getBreadcrumbSchema } from "../lib/schema";
 import { SITE } from "../config/site";
 
@@ -118,7 +120,7 @@ const level = proficiencyLevel ? levelConfig[proficiencyLevel] : null;
       >
     </nav>
 
-    <article>
+    <article class="pb-24">
       <!-- Post header -->
       <header class="pb-8 border-b border-bg-border mb-8">
         <h1
@@ -204,11 +206,15 @@ const level = proficiencyLevel ? levelConfig[proficiencyLevel] : null;
         }
       </header>
 
+      {series && <SeriesTimeline post={post} series={series} />}
+
       <!-- Post body — prose styles from @tailwindcss/typography,
            Shiki + token overrides handled in global.css -->
-      <div class="prose prose-invert max-w-none pb-24">
+      <div class="prose prose-invert max-w-none">
         <slot />
       </div>
+
+      {series && <NextArticle post={post} series={series} />}
     </article>
   </div>
 </BaseLayout>

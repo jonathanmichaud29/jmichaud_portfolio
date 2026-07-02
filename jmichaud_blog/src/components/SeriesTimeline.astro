@@ -1,0 +1,66 @@
+---
+import { getCollection } from "astro:content";
+import type { CollectionEntry } from "astro:content";
+
+interface Props {
+  post: CollectionEntry<"blog">;
+  series: CollectionEntry<"series">;
+}
+
+const { post, series } = Astro.props;
+
+const allPosts = await getCollection("blog", ({ data }) => !data.noindex);
+const seriesPosts = allPosts
+  .filter((p) => p.data.series?.id === series.id)
+  .sort((a, b) => (a.data.seriesPart ?? 0) - (b.data.seriesPart ?? 0));
+---
+
+<aside
+  class="mb-10 rounded-lg border border-bg-border bg-bg-surface px-5 py-4"
+  aria-label="Series navigation"
+>
+  <p class="font-mono text-xs uppercase tracking-widest text-text-muted mb-4">
+    Series —{" "}
+    <a
+      href={`/series/${series.data.slug}`}
+      class="text-accent hover:underline underline-offset-[3px]"
+    >
+      {series.data.title}
+    </a>
+  </p>
+
+  <ol class="flex flex-col gap-3">
+    {
+      seriesPosts.map((p, i) => {
+        const isCurrent = p.id === post.id;
+        const partNum = p.data.seriesPart ?? i + 1;
+        return (
+          <li class="flex items-start gap-3">
+            <span
+              class={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full text-[10px] font-mono font-bold flex items-center justify-center ${
+                isCurrent
+                  ? "bg-accent text-bg-base"
+                  : "border border-bg-border text-text-muted"
+              }`}
+              aria-hidden="true"
+            >
+              {partNum}
+            </span>
+            {isCurrent ? (
+              <span class="text-sm font-medium text-text-primary leading-5">
+                {p.data.title}
+              </span>
+            ) : (
+              <a
+                href={`/blog/${p.id}`}
+                class="text-sm text-text-muted hover:text-accent transition-colors duration-150 leading-5"
+              >
+                {p.data.title}
+              </a>
+            )}
+          </li>
+        );
+      })
+    }
+  </ol>
+</aside>
