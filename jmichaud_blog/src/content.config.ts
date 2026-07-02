@@ -28,8 +28,8 @@ const blog = defineCollection({
               .toLowerCase()
               .regex(
                 /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-                "Tags must be lowercase kebab-case"
-              )
+                "Tags must be lowercase kebab-case",
+              ),
           )
           .default([]),
         readingTime: z.number().int().positive().optional(),
@@ -39,7 +39,7 @@ const blog = defineCollection({
         {
           message: "seriesPart requires series to be set",
           path: ["seriesPart"],
-        }
+        },
       ),
     z
       .object({
@@ -60,8 +60,8 @@ const blog = defineCollection({
               .toLowerCase()
               .regex(
                 /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-                "Tags must be lowercase kebab-case"
-              )
+                "Tags must be lowercase kebab-case",
+              ),
           )
           .default([]),
         readingTime: z.number().int().positive().optional(),
@@ -71,7 +71,7 @@ const blog = defineCollection({
         {
           message: "seriesPart requires series to be set",
           path: ["seriesPart"],
-        }
+        },
       ),
   ]),
 });

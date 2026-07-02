@@ -11,8 +11,23 @@
       "docker-networking-pt1",
       "docker-networking-pt2"
     ],
-    "status" :  "active",
+    "status" :  "completed",
     "repoUrl": "https://www.github.com",
     "demoUrl" : "https://www.google.ca"
+  },
+  {
+    "$schema": "./series.schema.json",
+    "id": "ai-instructions",
+    "title": "Tips & Tricks with AI Structured Instructions",
+    "slug": "ai-instructions",
+    "description": "How can we change the AI behavior in order to have better results, fine-tune to our needs",
+    "publishedAt": "2026-04-01",
+    "updatedAt": "2026-07-01",
+    "order": [
+      "ai-instructions-pt1",
+      "ai-instructions-pt2",
+      "ai-instructions-pt3"
+    ],
+    "status" :  "active"
   }
 ]

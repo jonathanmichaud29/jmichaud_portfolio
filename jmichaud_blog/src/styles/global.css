@@ -10,6 +10,7 @@
 @theme {
   --color-bg:           #0d1117;
   --color-bg-surface:   #161b22;
+  --color-bg-surface-brighter:   #474747;
   --color-bg-border:    #30363d;
   --color-text-primary: #e6edf3;
   --color-text-muted:   #7d8590;
@@ -114,22 +115,17 @@ body {
   color: var(--color-text-muted);
 }
 
-.prose th {
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--color-text-muted);
-  background-color: var(--color-bg-surface);
-}
 
-.prose td,
-.prose th {
-  border-color: var(--color-bg-border);
-}
 
-.prose h2 {
-  border-bottom: 1px solid var(--color-bg-border);
-  padding-bottom: 0.5rem;
+.prose {
+  h1,h2,h3,h4,h5,h6 {
+    padding: 2rem 0;
+  }
+  h2{font-size: 1.5em;}
+  h3{font-size: 1.35em;}
+  h4{font-size: 1.25em;}
+  h5{font-size: 1.15em;}
+  h6{font-size: 1em;}
 }
 
 .prose a {
@@ -141,3 +137,47 @@ body {
   color: var(--color-accent-dim);
 }
 
+.prose p{
+  padding-bottom: 1em;
+}
+
+.prose ol{
+  list-style-type: decimal;
+  margin-left: 2em;
+
+  li{
+    padding-bottom:0.5em;
+  }
+}
+
+/* Code block */
+.prose {
+  code{
+    font-size: 0.87em;
+    border: 1px solid var(--color-bg-surface-brighter);
+    border-radius: 5px;
+    padding:3px 5px 2px 5px;
+    color: #F4A9A9;
+  }
+
+  table{
+    th {
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--color-text-muted);
+      background-color: var(--color-bg-surface);
+    }
+
+    td, th {
+      padding:5px 0px;
+    }
+
+    tbody{
+      tr{
+        border-color: var(--color-bg-surface-brighter);
+        border-bottom-width: 1px;
+      }
+    }
+  }
+}

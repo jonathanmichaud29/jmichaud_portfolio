@@ -1,0 +1,62 @@
+---
+type: tech-article
+title: "AI Instructions — Part 3"
+description: "Longevity of commands."
+publishedAt: 2026-07-01
+proficiencyLevel: beginner
+dependencies:
+  - ai
+series: ai-instructions
+seriesPart: 3
+tags:
+  - ai
+  - instructions
+---
+
+## Longevity of commands
+
+There are 4 levels of longevity. The shortest one is per message and the longuest/permanent one are account-bound.
+
+### Level 1 — In-Message
+
+**Scope** : Single response only
+
+```
+Think step by step and return only the code
+```
+
+Dies after that one reply. The next message starts fresh with default behavior. Good for one-off overrides.
+
+### Level 2 — In-Conversation
+
+**Scope** : An instruction given early in a conversation that the model tries to carry forward.
+
+```
+For this entire conversation, always respond in JSON
+and assume we are using React 18 with TypeScript
+```
+
+Caveats:
+
+- Degrades over long conversations as context fills up
+- Not guaranteed — the model can drift back to defaults
+- Reinforcing mid-conversation helps (as a reminder, always...)
+- No hard enforcement mechanism
+
+### Level 3 — Project-Level
+
+**Scope** : Every new chat within a project
+
+Powerful option to avoid redundancies when you have a clear objective in mind.
+
+For example, You need to create a new infrastructure which you need to submit to the board of directors. You create two projects : one with high-tech jargons and diagrams, the second that translate text that non-technical coworkers would understand.
+
+### Level 4 — Account-Level
+
+**Scope** : Every conversation across all projects
+
+If you have a specific taste that applies to any chat by default, this would be the right place.
+
+## Conclusion
+
+I prefer to use instructions per project that serves a specific purpose. If some exception would be well-suited for a specific response, I use an in-message command.

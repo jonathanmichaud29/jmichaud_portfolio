@@ -1,0 +1,359 @@
+---
+type: tech-article
+title: "AI Instructions — Part 2"
+description: "AI scopes, commands and parameters with some good combinations for any tools"
+publishedAt: 2026-05-01
+proficiencyLevel: intermediate
+dependencies:
+  - ai
+series: ai-instructions
+seriesPart: 2
+tags:
+  - ai
+  - tips-and-tricks
+  - commands
+---
+
+## Complete AI Prompting Scopes — Deep Analysis
+
+Here is a resume on how to control each scopes and what are their purposes
+
+### 1 — Output Format & Length Control
+
+**What it does**
+
+Overrides the AI's default formatting decisions.
+
+**How it works**
+
+Format commands work because the AI has learned associations between instruction patterns and output shapes. The more specific your format instruction, the less the model interpolates. For web dev, `Return only the code, no explanation` is essential when piping output into a file or editor. JSON formatting is critical when the output feeds another function or API. Mixing format commands with length commands creates tension — `be exhaustive but use bullet points` forces density, which can be useful for checklists or API references.
+
+#### Commands & parameters
+
+| Command                          | Parameters                                  | Effect                      |
+| -------------------------------- | ------------------------------------------- | --------------------------- |
+| `Format as [type]`               | table, JSON, XML, markdown, plain text, CSV | Forces specific structure   |
+| `Respond in [N] words/sentences` | Any number                                  | Hard length constraint      |
+| `Be concise / Be exhaustive`     | —                                           | Soft length signal          |
+| `Use headers / No headers`       | —                                           | Controls markdown structure |
+| `Bullet points only`             | —                                           | Removes prose entirely      |
+| `Return only the code`           | —                                           | Strips explanation          |
+
+#### Instructions combinations
+
+- `Format as JSON + strict schema definition` → predictable structured output
+- `Return only code + specify language` → clean copy-paste output
+- `Use a table + define the columns` → controlled comparison output
+
+### 2 — Reasoning Depth & Chain of Thought
+
+**What it does**
+
+Controls how the AI thinks before answering, not just what it outputs.
+
+**How it works**
+
+Chain-of-thought (CoT) prompting is one of the most research-backed techniques.
+It works by forcing the model to occupy more of its token budget before the final answer, which statistically improves accuracy on complex tasks.
+For web programming, this is invaluable when debugging — `think step by step through why this function returns undefined` yields far better diagnosis than just pasting the code.
+`Reason from first principles` is powerful for architecture decisions where you don't want the AI defaulting to the most common pattern.
+`Challenge your own answer` is underused — it forces the model to act as its own reviewer, catching logical errors or edge cases before you do.
+
+#### Commands & parameters
+
+| Command                          | Parameters                                  | Effect                                           |
+| -------------------------------- | ------------------------------------------- | ------------------------------------------------ |
+| `Think step by step`             | table, JSON, XML, markdown, plain text, CSV | Activates sequential reasoning                   |
+| `Show your reasoning`            | Any number                                  | Externalizes the thought process                 |
+| `Think out loud`                 | —                                           | More verbose internal monologue                  |
+| `Before answering, consider [X]` | Any constraint or angle                     | Pre-loads a reasoning lens                       |
+| `Reason from first principles`   | —                                           | Ignores conventions, rebuilds logic from scratch |
+| `Work backwards from [goal]`     | A defined end state                         | Reverse engineering reasoning                    |
+| `Identify assumptions first`     | —                                           | Forces explicit assumption listing               |
+| `Challenge your own answer`      | —                                           | Triggers self-critique loop                      |
+
+#### Instructions combinations
+
+- `Think step by step + show your reasoning` → full transparency debugging
+- `Identify assumptions + challenge your own answer` → robust architectural advice
+- `Work backwards from [a working app] + think step by step` → planning mode
+
+### 3 — Tone & Persona Control
+
+**What it does**
+
+Shifts the register, voice, and expertise level of responses.
+
+**How it works**
+
+Persona commands exploit the model's training on diverse human-written text.
+`Act as a senior web developer reviewing this PR` activates patterns associated with code review language — it will look for naming conventions, performance issues, security holes, and maintainability concerns that a generic `review this code` prompt misses.
+`Be opinionated` is particularly valuable for framework choices (React vs Vue vs Svelte) where the AI normally hedges endlessly.
+`Respond as if explaining to a junior developer` doesn't just simplify vocabulary — it changes the structure of the explanation, adding more analogies and less assumed context.
+For client communication, `explain this technical debt to a non-technical stakeholder` produces genuinely different, usable output.
+
+#### Commands & parameters
+
+| Command                                   | Parameters                                   | Effect                              |
+| ----------------------------------------- | -------------------------------------------- | ----------------------------------- |
+| `Act as [role]`                           | Senior dev, tech lead, code reviewer, etc.   | Persona adoption                    |
+| `Respond as if explaining to [audience]`  | Junior dev, non-technical client, etc.       | Calibrates complexity               |
+| `Use a [tone]`                            | Formal, casual, Socratic, blunt, encouraging | Controls register                   |
+| `Be opinionated`                          | —                                            | Suppresses hedging, forces a stance |
+| `Avoid jargon` / `Use technical language` | —                                            | Vocabulary control                  |
+| `Be critical`                             | —                                            | Activates critical review mode      |
+
+#### Instructions combinations
+
+- `Act as a senior dev + be critical` → rigorous code review
+- `Act as a tech lead + be opinionated` → decisive architecture guidance
+- `Explain to a junior dev + use analogies` → documentation drafts
+
+### 4 — Scope & Focus Control
+
+**What it does**
+
+Defines the boundaries of what the AI should and shouldn't address.
+
+**How it works**
+
+Scope control is where most developers lose value. By default the AI tries to be comprehensive, which creates noise.
+`Focus only on performance issues` on a code review cuts through style comments and naming debates.
+`Assume we are using React 18 with TypeScript and Tailwind` eliminates paragraphs of preamble and version disclaimers.
+`Prioritize security over brevity` is powerful for backend code — it shifts which tradeoffs the AI makes when writing auth logic or input validation.
+`Cover all edge cases` is particularly valuable when writing utility functions, as it forces the model to think about null inputs, empty arrays, type mismatches, and boundary conditions it would otherwise skip.
+
+#### Commands & parameters
+
+| Command                     | Parameters                         | Effect                           |
+| --------------------------- | ---------------------------------- | -------------------------------- |
+| `Focus only on [X]`         | A specific aspect                  | Excludes everything else         |
+| `Ignore [X]`                | Styling, error handling, etc.      | Explicit exclusion               |
+| `Cover all edge cases`      | —                                  | Expands scope to edge conditions |
+| `Prioritize [X] over [Y]`   | Performance over readability, etc. | Sets tradeoff direction          |
+| `Do not repeat what I said` | —                                  | Reduces redundancy               |
+| `Go deep on [X], skip [Y]`  | Any topics                         | Granular scope control           |
+| `Assume [context]`          | Language, framework, environment   | Fills assumed background         |
+
+#### Instructions combinations
+
+- `Assume [stack] + focus only on [concern]` → surgical, context-aware output
+- `Prioritize [X] + cover all edge cases` → production-grade code
+- `Ignore styling + go deep on logic` → focused function analysis
+
+### 5 — Iteration & Behavior Control
+
+**What it does**
+
+Controls how the AI handles uncertainty, gaps, and follow-up.
+
+**How it works**
+
+These commands are most valuable in agentic or multi-step workflows.
+`Ask me clarifying questions before answering` is underused — on complex web projects it can surface requirements you hadn't articulated.
+`Give me 3 versions` is powerful for UI components where you want design variation, or for API design where you want to compare RESTful vs GraphQL vs RPC approaches side by side.
+`Flag anything you are not sure about` is critical for anything security or production related — it creates an inline audit trail of what needs human verification.
+`Make your assumptions explicit` prevents the most common failure mode: the AI silently assumes a framework, version, or pattern and builds on a wrong foundation.
+
+#### Commands & parameters
+
+| Command                                        | Parameters | Effect                                  |
+| ---------------------------------------------- | ---------- | --------------------------------------- |
+| `Ask me clarifying questions before answering` | —          | Delays output until context is complete |
+| `Make your assumptions explicit`               | —          | Forces transparency on gaps             |
+| `Give me [N] versions`                         | Any number | Generates alternatives                  |
+| `Iterate on this`                              | —          | Treats prior output as a draft          |
+| `Stop if you are uncertain`                    | —          | Prevents hallucination continuation     |
+| `Flag anything you are not sure about`         | —          | Inline uncertainty markers              |
+| `Do not proceed until I confirm`               | —          | Manual step gating                      |
+
+#### Instructions combinations
+
+- `Ask clarifying questions + make assumptions explicit` → thorough requirements gathering
+- `Give 3 versions + prioritize [X]` → structured option comparison
+- `Flag uncertainty + stop if uncertain` → safe agentic task execution
+
+### 6 — Code Generation Control
+
+**What it does**
+
+Fine-tunes how code is written, structured, and annotated.
+
+**How it works**
+
+`Production-ready` is one of the highest-leverage single commands for web dev. It shifts the model from demo-grade to deployment-grade code — you get input validation, error boundaries, loading states, and null checks that a bare `write a function that...` omits.
+`Optimize for bundle size` is particularly useful in frontend work — the AI will prefer tree-shakeable imports, avoid heavy dependencies, and suggest code splitting.
+`Follow SOLID principles` on class-based backend code produces genuinely better architecture.
+`Do not use any` in TypeScript contexts is powerful — it forces the model to infer or define proper types rather than escape hatch.
+Combining `write production-ready + make it type-safe + include error handling` is the closest you can get to a senior dev quality floor in one shot.
+
+#### Commands & parameters
+
+| Command                         | Parameters                              | Effect                                    |
+| ------------------------------- | --------------------------------------- | ----------------------------------------- |
+| `Write production-ready code`   | —                                       | Adds error handling, edge cases, comments |
+| `Add inline comments`           | —                                       | Documents logic within code               |
+| `Follow [convention]`           | Airbnb, Google style, SOLID, etc.       | Enforces coding standards                 |
+| `Use [pattern]`                 | MVC, singleton, observer, etc.          | Targets design patterns                   |
+| `Do not use [library/feature]`  | lodash, any, eval, etc.                 | Explicit exclusions                       |
+| `Optimize for [goal]`           | Speed, readability, memory, bundle size | Sets optimization target                  |
+| `Include error handling`        | —                                       | Forces try/catch and validation           |
+| `Write this as a [module type]` | ESM, CommonJS, IIFE                     | Module format control                     |
+| `Make it type-safe`             | —                                       | Activates TypeScript strictness           |
+
+#### Instructions combinations
+
+- `Production-ready + type-safe + error handling` → deployment-grade output
+- `Optimize for readability + inline comments` → maintainable team code
+- `Follow [pattern] + do not use [library]` → constrained architecture work
+
+### 7 — Debugging & Code Review Control
+
+**What it does**
+
+Directs the AI's diagnostic and review process.
+
+**How it works**
+
+`What would break this in production?` is one of the most underused prompts in web dev. It forces the model to think about concurrency, network failure, malformed inputs, high load, and unexpected user behavior — not just whether the happy path works.
+`Find all race conditions` on async JavaScript is remarkably effective — the model understands event loop timing and Promise resolution well enough to spot real issues.
+`Review for accessibility` produces WCAG-aligned feedback on HTML/CSS that most developers overlook entirely.
+`Suggest refactors without changing behavior` is the key phrase for safe legacy code improvement — it explicitly prevents the AI from introducing new logic while cleaning up structure.
+
+#### Commands & parameters
+
+| Command                                       | Parameters                                 | Effect                            |
+| --------------------------------------------- | ------------------------------------------ | --------------------------------- |
+| `Find the bug`                                | —                                          | Pure diagnosis mode               |
+| `Explain why this fails`                      | —                                          | Root cause analysis               |
+| `Review for [concern]`                        | Security, performance, accessibility, etc. | Targeted review                   |
+| `Find all [issue type]`                       | Memory leaks, race conditions, XSS, etc.   | Exhaustive scan for specific flaw |
+| `What would break this in production?`        | —                                          | Stress-test reasoning             |
+| `Suggest refactors without changing behavior` | —                                          | Safe improvement mode             |
+| `Compare this to best practice`               | —                                          | Gap analysis against standard     |
+| `Check for [vulnerability]`                   | OWASP top 10, SQL injection, CSRF, etc.    | Security-specific scan            |
+
+#### Instructions combinations
+
+- `Find the bug + explain why it fails + suggest fix` → full debug cycle in one prompt
+- `Review for security + check for OWASP top 10` → security audit mode
+- `What would break in production + cover edge cases` → pre-deployment stress test
+
+### 8 — Architecture & Planning Control
+
+**What it does**
+
+Steers high-level design and system thinking.
+
+**How it works**
+
+`Compare A vs B for [specific context]` beats generic comparison prompts significantly.
+`Compare REST vs GraphQL for a mobile app with offline support` gives you a contextually relevant answer, not a generic pros/cons list.
+`Plan this in phases` is invaluable for project scoping — it produces MVP-first thinking with clear iteration boundaries.
+`What could go wrong with this design?` is a pre-mortem prompt that surfaces single points of failure, missing caching layers, auth gaps, and scalability cliffs before you build.
+`Suggest the simplest solution` counteracts the AI's tendency to over-engineer — it's most useful when you've already received a complex solution and want to pressure-test its necessity.
+
+#### Commands & parameters
+
+| Command                                 | Parameters          | Effect                          |
+| --------------------------------------- | ------------------- | ------------------------------- |
+| `Design a system that [requirement]`    | Any constraint set  | Full architecture generation    |
+| `Compare [A] vs [B] for [context]`      | Any two approaches  | Structured decision support     |
+| `What are the tradeoffs of [approach]?` | Any pattern or tool | Balanced analysis               |
+| `Draw this as a diagram`                | —                   | ASCII or Mermaid diagram output |
+| `Plan this in phases`                   | —                   | Staged implementation roadmap   |
+| `What could go wrong with this design?` | —                   | Pre-mortem analysis             |
+| `Suggest the simplest solution`         | —                   | Anti-over-engineering filter    |
+| `Scale this to [X users/requests]`      | Any scale target    | Scalability-aware redesign      |
+
+#### Instructions combinations
+
+- `Design a system + plan in phases + what could go wrong` → full architecture workshop
+- `Compare A vs B + be opinionated + prioritize [X]` → decisive tech selection
+- `Scale to [X] + suggest tradeoffs` → scalability planning
+
+### 9 — Claude-Specific (Artifacts & MCP)
+
+**What it does**
+
+Leverages Claude's unique rendering and integration capabilities.
+
+**How it works**
+
+Claude's artifact system is a full iterative UI development loop inside the chat.
+`Make it interactive` on a React artifact activates useState, event handlers, and dynamic rendering — you can prototype entire UIs conversationally.
+`Iterate on the artifact` is the key phrase for incremental development — it tells Claude to treat the existing code as a base rather than rewriting from scratch.
+MCP integration is the most powerful scope for professional web dev — connecting Claude to your GitHub repo means it can read actual files, open issues, and understand your real codebase rather than hypothetical code.
+
+#### Commands & parameters
+
+| Command                         | Parameters              | Effect                                    |
+| ------------------------------- | ----------------------- | ----------------------------------------- |
+| `Create an artifact`            | —                       | Opens live preview panel                  |
+| `Make it interactive`           | —                       | Adds state/UI controls to artifact        |
+| `Use React with hooks`          | —                       | Targets Claude's React renderer           |
+| `Connect to [MCP server]`       | GitHub, Figma, DB, etc. | Live external data integration            |
+| `Use extended thinking`         | —                       | Activates deep reasoning mode             |
+| `Iterate on the artifact`       | —                       | Treats current artifact as editable draft |
+| `Add [feature] to the artifact` | Any UI/logic feature    | Incremental artifact building             |
+
+#### Instructions combinations
+
+- `Create an artifact + make it interactive + use React with hooks` → full UI prototype loop
+- `Connect to [MCP server] + iterate on the artifact` → real codebase-aware development
+- `Use extended thinking + create an artifact` → deeply reasoned and rendered output
+
+### 10 — ChatGPT-Specific (Code Interpreter & GPTs)
+
+**What it does**
+
+Leverages OpenAI's execution sandbox and custom GPT ecosystem.
+
+**How it works**
+
+Code Interpreter's ability to actually execute code is its unique differentiator.
+For web dev, this means you can upload a JSON API response and have ChatGPT write and run parsing logic against real data, catching runtime errors instantly.
+The browser tool is useful for pulling live documentation when working with APIs that change frequently.
+
+#### Commands & parameters
+
+| Command                         | Parameters               | Effect                              |
+| ------------------------------- | ------------------------ | ----------------------------------- |
+| `Run this code`                 | —                        | Executes in sandbox, returns output |
+| `Generate and run tests`        | —                        | Writes and executes unit tests live |
+| `Use the browser tool`          | —                        | Triggers live web browsing          |
+| `Analyze this file`             | Uploaded CSV, JSON, etc. | Data analysis in sandbox            |
+| `Use a custom GPT for [domain]` | Any specialized GPT      | Domain-specific tuning              |
+
+#### Instructions combinations
+
+- `Run this code + generate and run tests` → live code validation loop
+- `Use the browser tool + analyze this file` → real-time data and docs cross-reference
+- `Use a custom GPT for [domain] + run this code` → specialized sandboxed execution
+
+### 11 — Gemini-Specific (Google Integration)
+
+**What it does**
+
+Leverages Gemini's deep Google ecosystem ties.
+
+**How it works**
+
+Gemini's strongest web dev advantage is recency. When a framework releases a breaking change, Gemini finds it via live search before other models' training data catches up.
+For fast-moving ecosystems like Next.js, Vite, or Bun, this matters significantly.
+Its native Google Workspace integration also makes it the best choice when your project documentation lives in Google Docs or your data in Sheets.
+
+#### Commands & parameters
+
+| Command                                 | Parameters            | Effect                            |
+| --------------------------------------- | --------------------- | --------------------------------- |
+| `Search for current docs on [library]`  | Any library/framework | Live Google Search-backed answers |
+| `Use Google workspace data`             | Docs, Sheets, Drive   | Native file integration           |
+| `Check the latest version of [package]` | Any npm/pip package   | Real-time version lookup          |
+| `Reference this URL`                    | Any public URL        | Deep URL content reading          |
+
+#### Instructions combinations
+
+- `Search for current docs + check latest version` → up-to-date dependency guidance
+- `Use Google workspace data + reference this URL` → documentation grounded in your own files
+- `Search for current docs + be opinionated` → current best-practice recommendation

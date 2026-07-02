@@ -60,8 +60,9 @@ pnpm build
 # Create a production environment, locally at http://172.20.0.2:4321
 make prod-local
 
-#
+# Build docker local containers, then with detached mode
 make dev
+make dev-d
 ```
 
 # TODO
@@ -74,3 +75,26 @@ make dev
 - [] Create real blog entries
 - [] Validate final texts
 - [] Deploy Production
+
+# How to create new serie of blogs
+
+1. Add the series entry to src/content/series/index.json — append a new object with a unique id/slug, title, description, publishedAt (date of first part), updatedAt, order (empty-ish, build up as you publish parts), status: "active", and optional repoUrl/demoUrl.
+
+2. Create the first post in src/content/blog/<series-slug>-pt1.mdx with frontmatter:
+
+```text
+type: tech-article   # or blog-post
+title: "..."
+description: "..."
+publishedAt: YYYY-MM-DD
+series: <series-id>
+seriesPart: 1
+tags: [...]
+(see docker-networking-pt1.mdx as the template)
+```
+
+3. Add that post's slug to the series' order array in index.json, in reading order — this is what drives the "latest part" link, so every slug listed must have a matching .mdx file or the build breaks per the schema comment.
+
+4. For each subsequent part, repeat steps 2–3 (-pt2.mdx, -pt3.mdx, …), bumping seriesPart and appending to order, and bump the series' updatedAt.
+
+5. Verify — /series/<slug> page (src/pages/series/[seriesSlug].astro) and individual post pages render automatically from the collection; no routing code needed. Run the dev server and check both.
