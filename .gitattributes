@@ -1,0 +1,10 @@
+# .gitattributes — enforces LF at the git object level, not just editor level
+* text=auto eol=lf
+*.php text eol=lf
+*.py text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.blade.php text eol=lf

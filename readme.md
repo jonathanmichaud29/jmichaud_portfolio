@@ -65,16 +65,43 @@ make dev
 make dev-d
 ```
 
-# TODO
+## Dev Onboarding
+
+### Unified code amongst devs
+
+```bash
+# One-time setup per Windows developer
+git config --global core.autocrlf false
+git config --global core.eol lf
+```
+
+```bash
+# One-time setup per developer
+pip install pre-commit
+pre-commit install
+```
+
+### Github settings
+
+Then in GitHub — Settings → Branches → Branch protection on main:
+
+✅ Require status checks: php, frontend, python
+✅ Require branches to be up to date
+✅ Require PR before merging (you already have this)
+✅ Do not allow bypassing the above settings
+
+## TODO
 
 - [x] Finalize CSS for desktop/tablet/mobile
 - [x] Create and validate SEO
 - [x] Create contact form endpoint
 - [x] Download Resume
+- [] Validate sitemap
 - [] Test build
 - [x] Create real blog entries
 - [] Validate final texts
 - [] Deploy Production
+- [] Fine tune UX on form and interactable items
 
 # How to create new serie of blogs
 

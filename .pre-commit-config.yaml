@@ -1,0 +1,40 @@
+# .pre-commit-config.yaml (repo root)
+repos:
+    - repo: https://github.com/pre-commit/pre-commit-hooks
+      rev: v6.0.0
+      hooks:
+          - id: end-of-file-fixer
+          - id: trailing-whitespace
+          - id: check-merge-conflict
+          - id: check-yaml
+          - id: check-json
+
+    - repo: https://github.com/astral-sh/ruff-pre-commit
+      rev: v0.15.20
+      hooks:
+          - id: ruff-check # ← was: ruff
+            args: [--fix]
+          - id: ruff-format
+
+    - repo: local
+      hooks:
+          - id: php-cs-fixer
+            name: PHP CS Fixer
+            entry: bash -c 'cd api && composer format:check'
+            language: system
+            files: \.php$
+            pass_filenames: false
+
+          - id: prettier
+            name: Prettier
+            entry: bash -c 'cd frontend && npm run format:check'
+            language: system
+            files: \.(ts|tsx|js|json|css|md)$
+            pass_filenames: false
+
+          - id: eslint
+            name: ESLint
+            entry: bash -c 'cd frontend && npm run lint'
+            language: system
+            files: \.(ts|tsx|js)$
+            pass_filenames: false
