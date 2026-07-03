@@ -68,8 +68,8 @@ make dev-d
 # TODO
 
 - [x] Finalize CSS for desktop/tablet/mobile
-- [] Create and validate SEO
-- [] Create contact form endpoint
+- [x] Create and validate SEO
+- [x] Create contact form endpoint
 - [x] Download Resume
 - [] Test build
 - [x] Create real blog entries

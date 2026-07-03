@@ -27,6 +27,7 @@ services:
     environment:
       - HOST=0.0.0.0
       - PORT=4321
+      - CI=true
     env_file:
       - .env
     #command: pnpm dev --host 0.0.0.0

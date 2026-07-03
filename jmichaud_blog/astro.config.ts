@@ -12,6 +12,7 @@ import { remarkReadingTime } from "./src/plugins/remark-reading-time";
 export default defineConfig({
   site: "https://www.jmichaud.ca",
   output: "server",
+  trailingSlash: "never",
 
   fonts: [
     {

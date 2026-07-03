@@ -13,6 +13,7 @@
  * Only global.css remains as an external stylesheet.
  */
 
+import ContactForm from "../components/ContactForm";
 import { SITE } from "../config/site";
 import {
   composeSchema,
@@ -200,7 +201,24 @@ const schema = composeSchema([...baseNodes, ...schemaNodes] as Parameters<
             <p class="text-sm text-text-muted mb-6">
               Open to permanent opportunities. Response within 48 hours.
             </p>
-            <form
+
+            <ContactForm client:visible />
+            <noscript>
+              <style>
+                .footer-contact form {
+                  display: none;
+                }
+              </style>
+              <p>
+                This form requires JavaScript. Feel free to reach me on
+                <a
+                  href={SITE.social.linkedin}
+                  target="_blank"
+                  rel="noopener noreferrer">LinkedIn</a
+                > instead.
+              </p>
+            </noscript>
+            <!-- <form
               class="flex flex-col gap-4 max-w-[480px]"
               action="/api/contact"
               method="POST"
@@ -259,7 +277,15 @@ const schema = composeSchema([...baseNodes, ...schemaNodes] as Parameters<
               >
                 Send message
               </button>
-            </form>
+              <input
+                type="text"
+                name="_gotcha"
+                tabindex="-1"
+                autocomplete="off"
+                style="position:absolute; left:-9999px;"
+                aria-hidden="true"
+              />
+            </form> -->
           </section>
 
           <!-- Footer right: links + resume -->
