@@ -1,0 +1,288 @@
+---
+type: tech-article
+title: "Repository Structure for a Multi-Language Monorepo"
+description: "How we reasoned through monorepo vs polyrepo, settled on a service split, and established type ownership rules for a PHP + Python + TypeScript stack."
+publishedAt: 2026-01-03
+proficiencyLevel: intermediate
+dependencies:
+    - docker
+    - vscode
+    - github
+    - php
+    - python
+    - typescript
+series: vscode-docker-setup
+seriesPart: 3
+tags:
+    - monorepo
+    - docker
+    - devcontainer
+    - php
+    - python
+    - typescript
+    - react
+    - ci
+    - repository-structure
+---
+
+# Repository Structure
+
+This article documents the reasoning process behind the repository structure for a multi-language
+project running PHP, Python, and TypeScript. Every decision here is a prerequisite for everything
+that follows — base images, Compose topology, devcontainer config, volume strategy, and CI all
+depend on knowing where things live and who owns them.
+
+---
+
+## The first question: monorepo or polyrepo?
+
+Before touching a single config file, you need to settle this. Not because the answer is obvious,
+but because getting it wrong is expensive to undo — it shapes where `devcontainer.json` lives, how
+Compose files are organized, and how a developer works across multiple services simultaneously.
+
+The framing most teams use is wrong. Monorepo vs polyrepo is not a question of team size or
+preference. The real axis is **coordination cost vs autonomy cost**.
+
+|                       | Monorepo                                  | Polyrepo                                      |
+| --------------------- | ----------------------------------------- | --------------------------------------------- |
+| Cross-service changes | One PR, one review                        | N PRs, N reviews, N merges                    |
+| Local orchestration   | Root `docker-compose.yml` owns everything | Needs a meta-repo or tribal knowledge         |
+| Shared types / config | Workspace references, no registry         | Private npm registry or copy-paste            |
+| CI scoping            | Must be path-filtered per service         | Each repo builds independently                |
+| Onboarding            | Clone one repo, run one command           | Must know which repos exist and in what order |
+
+**Polyrepo wins** when teams need genuinely independent release cycles and deploy velocity per
+service — typically when different teams own different services and cross-service changes are rare.
+
+**Monorepo wins** when a small team makes frequent cross-service changes, shares types or tooling
+config, and wants `git clone` + `make up` to be the entire onboarding story.
+
+### What about a meta-repo?
+
+A third model worth naming: **polyrepo + meta-repo**. The meta-repo contains no application code —
+its sole job is to wire together all service repos for local development. It owns the root
+`docker-compose.yml`, bootstrap scripts, shared env templates, and Kubernetes manifests.
+
+This solves the "who owns the full stack" problem in a polyrepo setup, but introduces a maintenance
+obligation. If the meta-repo goes stale, the real spin-up knowledge migrates to Slack messages and
+one engineer's local scripts. It only works if the team treats it as a first-class product.
+
+### Decision: monorepo
+
+For this stack — small team, one product, multiple languages, frequent cross-service changes, shared
+type contracts between PHP and TypeScript — the monorepo removes more friction than it introduces.
+The CI scoping concern (every commit triggers every pipeline) is mitigated by path filtering, which
+is a one-time setup cost rather than an ongoing tax.
+
+---
+
+## Defining the service split
+
+Since this project is a reference architecture rather than a production product, the services were
+chosen to be **illustrative** — each one demonstrates a distinct runtime and dependency management
+convention from the declared stack.
+
+| Service  | Languages          | Purpose                                             |
+| -------- | ------------------ | --------------------------------------------------- |
+| `api`    | PHP + TypeScript   | REST API, source of truth for shared type contracts |
+| `worker` | Python             | Background jobs, async processing                   |
+| `web`    | TypeScript + React | Frontend SPA, consumes API contracts                |
+
+This covers all four languages (PHP, Python, JavaScript, TypeScript) with no redundancy, and gives
+three distinct devcontainer scenarios, three distinct Dockerfile patterns, and three distinct CI
+path scopes.
+
+---
+
+## Root as orchestration layer
+
+The repository root is not a service. It is the orchestration layer. A developer should be able to
+run the full stack from root without knowing anything about the internals of any individual service.
+
+Root owns:
+
+- `docker-compose.yml` — declares all services, networks, and volumes
+- `.env.example` — canonical list of every environment variable the stack needs
+- `Makefile` — human-facing CLI surface (`make up`, `make logs`, `make types`)
+- `.gitignore` — root-level ignores that apply across all services
+
+Nothing application-specific lives at root. No `src/`, no `composer.json`, no `package.json`.
+
+---
+
+## Per-service devcontainers
+
+Each service gets its own `.devcontainer/` directory. A developer working on the API attaches VS
+Code to the `api` container and gets PHP + TypeScript LSP, extensions, and tooling — nothing else.
+A developer working on the frontend attaches to the `web` container and gets a Node environment.
+
+A single root devcontainer was considered and rejected. Running PHP, Python, and Node in one
+container is a maintenance burden and defeats the purpose of isolated runtimes. It also couples the
+devcontainer lifecycle to every service simultaneously, meaning a rebuild for a Python dependency
+change forces a PHP developer to wait.
+
+---
+
+## Type ownership: the physical boundary rule
+
+With PHP and TypeScript both present, shared types between `api` and `web` are inevitable. The
+question is where they live and who owns them.
+
+Three options were considered:
+
+**Option A — Collocate private types inside the service**
+Private types live in `services/<name>/src/types/`. A type only moves to `packages/types/` when
+more than one service needs it. The boundary is enforced by filesystem location, not convention.
+
+**Option B — Single `packages/types/` with namespace subdirectories**
+Everything lives in `packages/types/api/`, `packages/types/web/`, etc. The boundary is
+conventional — nothing technically prevents cross-service imports.
+
+**Option C — Hybrid (explicit statement of Option A)**
+`packages/types/` for shared contracts, `services/*/src/types/` for private types, with the rule
+written down explicitly. Functionally identical to Option A.
+
+**Decision: Option A.**
+
+The boundary must be physical, not conventional. Option B collapses under team growth — the moment
+someone imports a "private" type from another service's namespace, the boundary is gone and nothing
+in the toolchain catches it. Option A and C are the same thing; Option A was the instinctive choice
+and the right one.
+
+The rule, stated explicitly for documentation and code review:
+
+> A type that is only used within one service lives in `services/<name>/src/types/` and is never
+> imported cross-service. A type that is needed by more than one service is promoted to
+> `packages/types/`.
+
+---
+
+## The type generation pipeline
+
+Shared types in `packages/types/` are not hand-written. PHP is the source of truth for API
+contracts. The generation flow is:
+
+```
+PHP annotations → openapi.json → packages/types/*.d.ts
+```
+
+Tools: `zircote/swagger-php` on the PHP side, `openapi-typescript` on the TypeScript side.
+
+Key decisions in this pipeline:
+
+**Generated types are committed to the repo.** This means `web` always has types available without
+running a generation step first. The TypeScript compiler is happy from a clean clone. The tradeoff
+is that PRs touching API contracts include generated diffs — acceptable for a reference project.
+
+**`make types` handles regeneration.** One command at root regenerates the full type output. No
+developer needs to know the underlying toolchain.
+
+**CI fails on drift.** If `openapi.json` changes but `packages/types/` was not regenerated, CI
+catches it. The generated output is always in sync with the PHP source of truth.
+
+---
+
+## `packages/` for shared tooling config
+
+Beyond types, two additional shared packages prevent config drift across services:
+
+- `eslint-config/` — one lint ruleset consumed by both `api` and `web`
+- `tsconfig-base/` — base TypeScript config that both `api` and `web` extend
+
+These are hand-maintained (not generated), live in `packages/`, and are referenced via npm
+workspace references. No private npm registry is needed — the monorepo makes them locally available.
+
+---
+
+## CI: path-filtered per service
+
+One workflow file per service. Each file declares a path filter so only the relevant pipeline runs
+on a given commit.
+
+GitHub Actions syntax:
+
+```yaml
+on:
+    push:
+        paths:
+            - "services/api/**"
+```
+
+GitLab CI equivalent:
+
+```yaml
+api-build:
+    rules:
+        - changes:
+              - services/api/**
+```
+
+The pattern is identical in both platforms. The reference project documents both but does not
+mandate a CI provider. The directory structure is what makes path filtering possible — without
+`services/api/` as a clean boundary, you cannot scope builds reliably.
+
+---
+
+## Final directory skeleton
+
+```
+my-project/
+├── services/
+│   ├── api/                   # PHP · TypeScript
+│   │   ├── .devcontainer/
+│   │   ├── src/
+│   │   │   └── types/         # api-private types — never imported cross-service
+│   │   ├── tests/
+│   │   ├── Dockerfile
+│   │   ├── composer.json
+│   │   ├── openapi.json       # ✦ source of truth for shared types
+│   │   └── tsconfig.json
+│   ├── worker/                # Python
+│   │   ├── .devcontainer/
+│   │   ├── src/
+│   │   │   └── types/         # worker-private types
+│   │   ├── tests/
+│   │   ├── Dockerfile
+│   │   ├── requirements.txt
+│   │   └── pyproject.toml
+│   └── web/                   # TypeScript · React
+│       ├── .devcontainer/
+│       ├── src/
+│       │   └── types/         # web-private types — never imported cross-service
+│       ├── tests/
+│       ├── Dockerfile
+│       ├── package.json
+│       └── tsconfig.json
+├── packages/
+│   ├── types/                 # generated from openapi.json · committed to repo
+│   ├── eslint-config/         # shared lint rules
+│   └── tsconfig-base/         # base TS config extended by api and web
+├── infra/
+│   ├── k8s/
+│   └── helm-charts/
+├── .github/
+│   └── workflows/
+│       ├── api.yml            # path: services/api/**
+│       ├── worker.yml         # path: services/worker/**
+│       └── web.yml            # path: services/web/**
+├── docker-compose.yml
+├── .env.example
+├── Makefile
+└── .gitignore
+```
+
+✦ `openapi.json` is committed to the repo. `make types` regenerates `packages/types/` from it.
+CI fails if the two are out of sync.
+
+---
+
+## What this unlocks
+
+This structure is the prerequisite for every subsequent decision in the setup series:
+
+- **Base image strategy** — we know exactly how many runtimes exist and where their Dockerfiles live
+- **Compose topology** — the root `docker-compose.yml` location is confirmed
+- **Devcontainer config** — one `.devcontainer/` per service, location confirmed
+- **Volume strategy** — we know where `node_modules`, `vendor`, and `.venv` live relative to service roots
+- **VS Code workspace** — service boundaries are known, multi-root workspace shape is clear
+- **CI path filters** — `services/<name>/` gives a clean scope for every pipeline

@@ -1,19 +1,24 @@
 [
   {
     "$schema": "./series.schema.json",
-    "id": "docker-networking",
-    "title": "Docker Networking Deep Dive",
-    "slug": "docker-networking",
-    "description": "A deep dive into Docker networking concepts.",
-    "publishedAt": "2025-01-01",
-    "updatedAt": "2026-02-02",
+    "id": "vscode-docker-setup",
+    "title": "VS Code + Docker for a small team",
+    "slug": "vscode-docker-setup",
+    "description": "Best practices for small teams. Unified coding, minimal host libraries installations",
+    "publishedAt": "2026-01-01",
+    "updatedAt": "2026-04-01",
     "order": [
-      "docker-networking-pt1",
-      "docker-networking-pt2"
+      "vscode-docker-intro",
+      "vscode-docker-pt1",
+      "vscode-docker-pt2",
+      "vscode-docker-pt3",
+      "vscode-docker-pt4",
+      "vscode-docker-pt1-short",
+      "vscode-docker-pt2-short",
+      "vscode-docker-pt3-short",
+      "vscode-docker-pt4-short"
     ],
-    "status" :  "completed",
-    "repoUrl": "https://www.github.com",
-    "demoUrl" : "https://www.google.ca"
+    "status" :  "active"
   },
   {
     "$schema": "./series.schema.json",

@@ -1,0 +1,370 @@
+---
+type: tech-article
+title: "Docker base image strategy for a multi-language monorepo"
+description: "How to choose, pin, and structure Docker base images across PHP, Python, and Node services — including the reasoning behind Alpine vs Debian, multi-stage builds, and devcontainer inheritance."
+publishedAt: 2026-07-14
+proficiencyLevel: intermediate
+dependencies:
+    - docker
+    - vscode
+series: vscode-docker-setup
+seriesPart: 4
+tags:
+    - docker
+    - php
+    - python
+    - typescript
+    - devcontainer
+    - multi-stage-builds
+    - security
+---
+
+# Docker base image strategy for a multi-language monorepo
+
+Base image strategy is the second decision in setting up a team project, right
+after repository structure. It is also the one most likely to cause subtle,
+hard-to-diagnose production bugs if chosen carelessly. This article walks
+through the questions that need to be answered, the options available, and the
+reasoning behind each final decision.
+
+The project context: a monorepo with three services — `api` (PHP + TypeScript),
+`worker` (Python), and `web` (TypeScript + React) — targeting a team that runs
+VS Code Dev Containers locally and deploys to Kubernetes in production.
+
+---
+
+## The question behind the question
+
+Choosing a base image sounds like a simple lookup: find the official image,
+paste it into the Dockerfile. The actual decision is more layered than that.
+
+- Which image _variant_ — Alpine, slim, full Debian?
+- How do you _pin_ the image so it doesn't silently change under you?
+- Who is responsible for _updating_ the pin when a security fix lands?
+- Do you maintain _custom base images_, or use upstream images directly?
+- How does the image a developer works inside relate to the image that runs in
+  production?
+
+Each question has compounding effects. A wrong call on the variant question
+can surface as a production-only runtime error weeks after the image was first
+written. A missing pinning strategy means two developers running `docker build`
+on the same day can get different results. Getting these decisions right early
+is cheaper than fixing them after services are in production.
+
+---
+
+## Option A — upstream images only
+
+Use official images from Docker Hub as-is, with no intermediate layer.
+
+```dockerfile
+FROM php:8.3-fpm-alpine
+FROM python:3.12-slim
+FROM node:22-alpine
+```
+
+**Why it's tempting:** zero infrastructure overhead. No registry, no build
+pipeline, no image maintenance.
+
+**Why it falls apart at scale:** every service's Dockerfile independently
+installs extensions, system packages, and tooling on top of the base. Over
+time these diverge. Two services that both need OpenSSL will install it
+differently, pin it differently, and eventually behave differently. There is
+no single place to enforce a consistent OS baseline across the team.
+
+For a small guideline project with no registry available, this is the practical
+choice — but it needs to be combined with strict pinning and a structure that
+makes graduating to custom base images a one-line change.
+
+**Option A is what this guideline uses, with the discipline of Option B applied
+to it.**
+
+## Option B — custom base images
+
+Maintain internal images that extend upstream and add shared tooling, then
+publish them to a registry.
+
+```dockerfile
+# Internal base
+FROM php:8.3-fpm-bookworm@sha256:…
+RUN docker-php-ext-install pdo_pgsql intl opcache
+# Published to GHCR as myorg/php-base:8.3
+
+# Service Dockerfile
+FROM myorg/php-base:8.3
+```
+
+**Why it's the right answer for a real team:** one place to add extensions,
+one place to pin the OS version, fast per-service builds because the shared
+layer is already cached in the registry.
+
+**Why it's out of scope here:** it requires a registry (GHCR, ECR, or Docker
+Hub), a build-and-push CI workflow, and a human or bot responsible for
+rebuilding when CVEs land upstream. That infrastructure overhead is not
+appropriate for a guideline project with no registry available.
+
+**The migration path is preserved** by writing Dockerfiles so that the `FROM`
+line is the only thing that changes when a team graduates to Option B.
+
+---
+
+## Alpine vs Debian — the decision that matters most
+
+This is the single most consequential variant choice, and the one most commonly
+made wrong by defaulting to Alpine because of its smaller image size.
+
+### What Alpine is
+
+Alpine Linux uses **musl libc** as its C standard library. Most Linux software
+is built and tested against **glibc** (the GNU C Library used by Debian, Ubuntu,
+and most production Linux distributions). musl is a different implementation —
+binary-incompatible with glibc-linked shared objects.
+
+### Where it breaks
+
+The incompatibility is invisible until you need a compiled binary or a C
+extension. Then it surfaces as one of:
+
+- A runtime error loading a shared library
+- A pip install that rejects pre-built wheels and attempts to compile from
+  source, failing without a full build toolchain
+- Subtle cryptographic behavior differences that only appear under specific
+  inputs
+
+### The decision per service
+
+**`api` (PHP): Debian bookworm.**
+PHP C extensions link against glibc. Any Composer package that ships a compiled
+binary, or any library wrapping a C crypto primitive, will behave incorrectly
+or fail at runtime on Alpine. Since API services routinely need to validate
+credentials and sign tokens, crypto correctness is non-negotiable.
+`php:8.3-fpm-bookworm` is the safe default.
+
+**`worker` (Python): Debian slim-bookworm.**
+The `cryptography` PyPI package — a transitive dependency of virtually every
+Python authentication library — ships pre-built glibc-linked wheels. On Alpine,
+pip rejects these wheels and falls back to compiling from source. That
+compilation requires a C toolchain that is not present in the base image and
+will fail. `python:3.12-slim-bookworm` avoids the problem entirely.
+
+**`web` (TypeScript + React): Alpine is fine.**
+The Node.js ecosystem has broadly committed to musl support. More importantly,
+the production image for `web` is not Node at all — it is `nginx:alpine`. Node
+never reaches production for this service.
+
+**The rule to carry forward:** start on Debian, move to Alpine only with a
+concrete measured reason.
+
+---
+
+## Pinning — tags are not pins
+
+A Docker image tag like `php:8.3-fpm-bookworm` is a mutable pointer. The
+upstream maintainers can push a new image under the same tag at any time —
+to patch a CVE, update a dependency, or fix a bug. Two `docker build` runs
+on different days can pull genuinely different images while reporting the same
+tag.
+
+The correct pin combines a tag with a SHA-256 digest:
+
+```dockerfile
+# Tag only — mutable, avoid
+FROM php:8.3-fpm-bookworm
+
+# Tag + digest — immutable, use this
+FROM php:8.3-fpm-bookworm@sha256:a1b2c3d4…
+```
+
+The tag documents intent for human readers. The digest controls what is
+actually pulled. Docker resolves the digest and ignores the tag.
+
+### Getting the digest
+
+```bash
+docker pull php:8.3-fpm-bookworm
+docker inspect php:8.3-fpm-bookworm --format '{{index .RepoDigests 0}}'
+# → php@sha256:a1b2c3d4…
+```
+
+### Keeping digests current — Renovate
+
+Pinning by digest creates a new problem: the pin needs to be updated when
+upstream releases a security fix. Manual digest management does not scale.
+
+**Renovate** (or GitHub's Dependabot) solves this. Both tools understand the
+`tag@digest` syntax in Dockerfiles. When an upstream image is rebuilt, the
+bot opens a pull request with the new digest. Every image update has an audit
+trail and goes through review. The team is notified of security patches without
+having to watch upstream release notes.
+
+A CVE — Common Vulnerabilities and Exposures — is the industry-standard
+identifier for a publicly known security flaw. When a CVE is patched in a base
+image, the image gets a new digest. Renovate surfaces that change as a PR.
+
+---
+
+## Multi-stage builds and devcontainer inheritance
+
+The base image decision is inseparable from how the devcontainer and the
+production image relate to each other. Two models exist.
+
+### Model 1 — independent devcontainer (avoid)
+
+The devcontainer uses a separate Microsoft pre-built image. The production
+Dockerfile is unrelated.
+
+```json
+// .devcontainer/devcontainer.json
+{
+    "image": "mcr.microsoft.com/devcontainers/php:8.3"
+}
+```
+
+**The problem:** the developer works inside a different OS, different glibc
+version, and different extension build flags than production. Bugs that only
+surface in production are the predictable outcome.
+
+### Model 2 — devcontainer extends the service image (use this)
+
+One Dockerfile with named stages. The devcontainer targets the `dev` stage.
+Compose targets the `prod` stage. Both share the same `base` — same OS, same
+runtime, same dependency install.
+
+```dockerfile
+FROM php:8.3-fpm-bookworm@sha256:… AS base
+# deps installed here — shared by dev and prod
+
+FROM base AS dev
+# adds Xdebug, shell tools — used by devcontainer
+
+FROM base AS prod
+# adds source code — used by Compose and CI
+```
+
+A bug that reproduces in `dev` will reproduce in `prod`. That is the guarantee
+this model provides.
+
+---
+
+## Final Dockerfiles
+
+### api — two-stage (PHP + TypeScript)
+
+```dockerfile
+FROM php:8.3-fpm-bookworm@sha256:<digest> AS base
+WORKDIR /var/www/html
+COPY composer.json composer.lock ./
+RUN composer install --no-scripts --no-autoloader --no-dev
+
+FROM base AS dev
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git curl bash unzip vim \
+    && rm -rf /var/lib/apt/lists/* \
+    && pecl install xdebug \
+    && docker-php-ext-enable xdebug
+
+FROM base AS prod
+COPY . .
+RUN composer dump-autoload --optimize
+```
+
+### worker — two-stage (Python)
+
+```dockerfile
+FROM python:3.12-slim-bookworm@sha256:<digest> AS base
+WORKDIR /app
+COPY pyproject.toml ./
+RUN pip install --no-cache-dir .
+
+FROM base AS dev
+RUN pip install --no-cache-dir debugpy \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        git curl bash vim \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM base AS prod
+COPY . .
+```
+
+### web — three-stage (TypeScript + React + nginx)
+
+The `web` service demonstrates that `prod` does not have to extend `dev`. The
+production target is a completely different runtime. Node never reaches
+production.
+
+```dockerfile
+FROM node:22-alpine@sha256:<digest> AS base
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+
+FROM base AS dev
+RUN apk add --no-cache git curl bash vim
+
+FROM base AS build
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine@sha256:<digest> AS prod
+COPY --from=build /app/dist /usr/share/nginx/html
+```
+
+`npm ci` is used instead of `npm install` in all non-interactive contexts. It
+is stricter, faster, and respects the lockfile without ever modifying it.
+
+The nginx production image has a dramatically smaller CVE surface than any Node
+runtime image. This is a measurable security benefit, not a theoretical one.
+
+---
+
+## Layer cache discipline
+
+Instruction order in the `base` stage is load-bearing. Dependencies change
+infrequently; source code changes on every commit. Copying the lock file before
+copying source ensures that a source-only change hits the cache at the
+dependency install step and does not re-run Composer, pip, or npm.
+
+```dockerfile
+# Correct — dep layer survives source changes
+COPY composer.lock composer.json ./
+RUN composer install
+COPY . .
+
+# Wrong — source change invalidates the dep layer on every build
+COPY . .
+RUN composer install
+```
+
+This rule applies identically across all three services and is one of the most
+common Dockerfile mistakes in practice.
+
+---
+
+## Decision summary
+
+| Decision             | Choice                      | Reason                                             |
+| -------------------- | --------------------------- | -------------------------------------------------- |
+| Strategy             | Upstream + pinned digest    | No registry; structured to graduate to custom base |
+| PHP base             | `php:8.3-fpm-bookworm`      | glibc required for C extensions and crypto         |
+| Python base          | `python:3.12-slim-bookworm` | glibc wheels for `cryptography` package            |
+| Node base            | `node:22-alpine`            | musl support is solid in the Node ecosystem        |
+| Web prod base        | `nginx:alpine`              | Node never reaches production                      |
+| Pinning              | tag + SHA-256 digest        | Tags are mutable; digests are immutable            |
+| Digest updates       | Renovate bot                | Automated PRs with audit trail per CVE patch       |
+| Multi-stage          | base → dev / prod           | Dev/prod parity by construction                    |
+| devcontainer model   | Extends service image       | Same OS and runtime as production                  |
+| Dep install location | `base` stage                | Shared layer; survives source-only rebuilds        |
+
+---
+
+## What comes next
+
+Volume strategy governs whether `node_modules`, `vendor`, and `.venv` live
+inside the container filesystem or on a named Docker volume — and whether they
+survive container rebuilds. The Dockerfiles above are written agnostically:
+dependencies are installed into the image, and the volume strategy subject will
+decide whether those paths are shadowed by a mount at runtime.
+
+devcontainer.json configuration — extensions, port forwarding, lifecycle
+scripts, and the `target` field pointing at the `dev` stage — is covered in
+subject 4.

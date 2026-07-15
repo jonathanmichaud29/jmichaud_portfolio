@@ -1,0 +1,336 @@
+---
+type: tech-article
+title: "Unified Code Style Across a Polyglot Team"
+description: "How a 5-person team on mixed operating systems establishes consistent formatting and linting across PHP, Python, JavaScript, and TypeScript — without debate, without drift, and without a single global install."
+publishedAt: 2026-01-02
+proficiencyLevel: intermediate
+dependencies:
+    - vscode
+    - docker
+    - php-cs-fixer
+    - phpstan
+    - larastan
+    - prettier
+    - eslint
+    - ruff
+    - pre-commit
+    - github-actions
+series: vscode-docker-setup
+seriesPart: 12
+tags:
+    - php
+    - python
+    - typescript
+    - javascript
+    - laravel
+    - formatting
+    - linting
+    - pre-commit
+    - github-actions
+    - devcontainers
+    - coordination
+    - monorepo
+---
+
+# Summary — Unified Code Style Across a Polyglot Team
+
+> **What this is:** A 5-person team on mixed OSes (Windows/macOS/Linux) sets up consistent formatting and linting across PHP, Python, JavaScript, and TypeScript — using per-language best-in-class tools, coordinated through pre-commit hooks and a CI gate.
+
+---
+
+## The Core Principle
+
+> **CI is truth. Everything else is convenience.**
+
+Pre-commit hooks give fast local feedback, but they can be bypassed with `git commit --no-verify`. Only GitHub branch protection rules — requiring CI checks to pass before merging — form a real enforcement gate.
+
+---
+
+## Chain of Thought (Why Decisions Were Made in This Order)
+
+### 1. Narrow the scope first
+
+Resist the urge to grab an all-in-one meta-tool like `megalinter`. For a small team, the overhead of managing a wrapper-tool exceeds the value. The better model: **run each language's best tool natively, coordinate at CI level only.**
+
+### 2. Solve the cross-cutting problem before language tools
+
+Before any formatter, there is a shared problem affecting every file: **line endings**. Windows defaults to CRLF; Linux/Docker expects LF. This breaks diffs, shell scripts, and Docker build contexts.
+
+Two files fix this together — neither alone is sufficient:
+
+- `.editorconfig` → tells the _editor_ what to write
+- `.gitattributes` → tells _git_ what to store, regardless of editor behavior
+
+```ini
+# .editorconfig
+root = true
+
+[*]
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+
+[*.json]
+indent_size = 2
+
+[*.yml]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+```
+
+```gitattributes
+# .gitattributes
+* text=auto eol=lf
+*.php text eol=lf
+*.py text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.blade.php text eol=lf
+```
+
+Windows devs run this once during onboarding:
+
+```bash
+git config --global core.autocrlf false
+git config --global core.eol lf
+```
+
+### 3. Pick tools per language — reject the defaults where needed
+
+**PHP (`/api` — Laravel):**
+
+- PHP CS Fixer over Pint → explicit config versioned in the repo, readable without knowing Pint's opinionated defaults
+- Larastan (PHPStan + Laravel extension) over vanilla PHPStan → vanilla PHPStan doesn't understand Eloquent models or facades, producing false positives that erode trust
+- PHPStan at **level 6, not 8** → starting at max strictness floods the team with errors and kills adoption
+
+```json
+// api/composer.json — scripts block
+{
+    "scripts": {
+        "format": "php-cs-fixer fix",
+        "format:check": "php-cs-fixer fix --dry-run --diff",
+        "analyse": "phpstan analyse"
+    }
+}
+```
+
+**JS/TS (`/frontend`):**
+
+- Prettier (formatter) and ESLint (linter) serve different purposes — don't conflate them
+- `eslint-config-prettier` must be **last** in ESLint's `extends` array to disable any ESLint rules that overlap with Prettier's formatting
+
+```json
+// frontend/package.json — scripts block
+{
+    "scripts": {
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "lint": "eslint . --max-warnings=0",
+        "lint:fix": "eslint . --fix"
+    }
+}
+```
+
+**Python (`/scripts`):**
+
+- Ruff over Black + isort + flake8 → one tool, runs in under a second, covers the same ground. No justification for three slower fragmented tools on a greenfield setup.
+
+```toml
+# scripts/pyproject.toml
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+```
+
+### 4. Pre-commit hooks = fast feedback, not a gate
+
+The `pre-commit` framework (not Husky — Husky is Node-native and creates friction for PHP/Python devs) handles all four languages from one config at the repo root.
+
+```yaml
+# .pre-commit-config.yaml
+repos:
+    - repo: https://github.com/pre-commit/pre-commit-hooks
+      rev: v6.0.0
+      hooks:
+          - id: end-of-file-fixer
+          - id: trailing-whitespace
+          - id: check-merge-conflict
+          - id: check-yaml
+          - id: check-json
+
+    - repo: https://github.com/astral-sh/ruff-pre-commit
+      rev: v0.15.20
+      hooks:
+          - id: ruff-check
+            args: [--fix]
+          - id: ruff-format
+
+    - repo: local
+      hooks:
+          - id: php-cs-fixer
+            name: PHP CS Fixer
+            entry: bash -c 'cd api && composer format:check'
+            language: system
+            files: \.php$
+            pass_filenames: false
+
+          - id: prettier
+            name: Prettier
+            entry: bash -c 'cd frontend && npm run format:check'
+            language: system
+            files: \.(ts|tsx|js|json|css|md)$
+            pass_filenames: false
+
+          - id: eslint
+            name: ESLint
+            entry: bash -c 'cd frontend && npm run lint'
+            language: system
+            files: \.(ts|tsx|js)$
+            pass_filenames: false
+```
+
+One-time setup per developer:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+### 5. CI is the only real gate
+
+Three parallel jobs (one per language) so a failure in PHP doesn't delay TS feedback. Each job name maps directly to a GitHub branch protection status check.
+
+```yaml
+# .github/workflows/lint.yml
+name: Lint & Format
+
+on:
+    pull_request:
+    push:
+        branches: [main, develop]
+
+jobs:
+    php:
+        name: PHP (Laravel)
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: shivammathur/setup-php@v2
+              with:
+                  php-version: "8.3"
+                  tools: composer
+            - run: cd api && composer install --no-interaction
+            - run: cd api && composer format:check
+            - run: cd api && composer analyse
+
+    frontend:
+        name: JS/TS (Frontend)
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "20"
+                  cache: "npm"
+                  cache-dependency-path: frontend/package-lock.json
+            - run: cd frontend && npm ci
+            - run: cd frontend && npm run format:check
+            - run: cd frontend && npm run lint
+
+    python:
+        name: Python (Scripts)
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: "3.11"
+            - run: pip install ruff
+            - run: cd scripts && ruff format --check .
+            - run: cd scripts && ruff check .
+```
+
+### 6. Carry the formatting contract into AI-generated code
+
+`CLAUDE.md` at the repo root is read automatically by Claude Code on every operation. This ensures AI-generated code respects project formatting without manual reminders.
+
+---
+
+## Rollout Order (Don't Do Everything at Once)
+
+Introducing all of this simultaneously is the most common reason linting setups fail on small teams.
+
+| Week | Action                                                                                     | Team impact                        |
+| ---- | ------------------------------------------------------------------------------------------ | ---------------------------------- |
+| 1    | Commit `.editorconfig`, `.gitattributes`, `.vscode/settings.json`, `CLAUDE.md`             | Zero — no new tools required       |
+| 2    | One formatting PR per language (run formatters across entire codebase, commit result)      | Formatting drift stops permanently |
+| 3    | Install `pre-commit`, commit `.pre-commit-config.yaml`, each dev runs `pre-commit install` | Formatting feedback before push    |
+| 4    | Add GitHub Actions workflow + enable branch protection rules                               | Full enforcement                   |
+
+---
+
+## What Was Rejected and Why
+
+| Rejected                              | Reason                                                                           |
+| ------------------------------------- | -------------------------------------------------------------------------------- |
+| `megalinter` / polyglot meta-tool     | Maintenance overhead exceeds value for 5 people                                  |
+| Treating pre-commit hooks as the gate | `git commit --no-verify` bypasses them — they are feedback, not enforcement      |
+| PHPStan at max strictness (level 8)   | Hundreds of errors on first run → destroys adoption                              |
+| Black + isort + flake8 for Python     | Three slower fragmented tools vs. one fast Ruff — no justification on greenfield |
+| Gradual linter configuration          | Revisiting config costs more time than getting it right once upfront             |
+
+---
+
+## Dependency Versions (Verified July 2026)
+
+| Tool                          | Version             |
+| ----------------------------- | ------------------- |
+| `pre-commit/pre-commit-hooks` | `v6.0.0`            |
+| `astral-sh/ruff-pre-commit`   | `v0.15.20`          |
+| PHP CS Fixer                  | Latest via Composer |
+| Larastan                      | Latest via Composer |
+| Prettier                      | Latest via npm      |
+| `@typescript-eslint`          | Latest via npm      |
+
+Use Dependabot to keep pre-commit hook revisions from drifting against CI:
+
+```yaml
+# .github/dependabot.yml
+version: 2
+updates:
+    - package-ecosystem: "github-actions"
+      directory: "/"
+      schedule:
+          interval: "weekly"
+```
+
+---
+
+## Full Enforcement Stack at a Glance
+
+| Layer                       | Tool                               | Enforced by                        |
+| --------------------------- | ---------------------------------- | ---------------------------------- |
+| Line endings                | `.editorconfig` + `.gitattributes` | Git + editor                       |
+| PHP formatting              | PHP CS Fixer (PSR-12)              | Pre-commit + CI                    |
+| PHP static analysis         | Larastan level 6                   | CI                                 |
+| JS/TS formatting            | Prettier                           | Pre-commit + CI                    |
+| JS/TS linting               | ESLint + `@typescript-eslint`      | Pre-commit + CI                    |
+| Python formatting + linting | Ruff                               | Pre-commit + CI                    |
+| AI code quality             | `CLAUDE.md`                        | Claude Code reads it automatically |
+| Merge gate                  | GitHub branch protection           | GitHub — cannot be bypassed        |

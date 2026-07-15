@@ -1,0 +1,427 @@
+---
+type: tech-article
+title: "Docker Compose Topology"
+description: "How services are declared, networked, and orchestrated locally — and where the local topology maps to Kubernetes in production."
+publishedAt: 2026-07-15
+proficiencyLevel: intermediate
+dependencies:
+    - docker
+    - kubernetes
+series: vscode-docker-setup
+seriesPart: 15
+tags:
+    - docker
+    - compose
+    - networking
+    - devcontainer
+    - kubernetes
+---
+
+# Summary: Docker Compose Topology
+
+**Original doc:** Docker Compose Topology (Series: VSCode Docker Setup, Part 3)
+**Audience:** Intermediate — assumes basic Docker knowledge
+**Stack:** PHP+TS (`api`), Python (`worker`), TS+React (`web`), with Postgres, a message broker, and nginx
+
+---
+
+## What this doc is about
+
+This document answers a single question: **how should you wire multiple services together using Docker Compose?** It's the third decision in a project setup sequence — after repository structure and base image strategy. Those two must be done first because they affect what you put in your Compose files.
+
+The core constraint already in place: **no runtimes on the host machine** — everything runs inside containers.
+
+---
+
+## The 5 sub-problems (in order)
+
+Compose topology isn't one big decision. It's five smaller ones, each depending on the previous.
+
+---
+
+### 1. How much goes in `docker-compose.yml` vs. the Dockerfile?
+
+**The tension:** you can put service config in either place. Putting it in both causes drift.
+
+**Decision: "thin declaration" — Compose is a coordinator, not a configurator.**
+
+Compose declares _how services connect_. The Dockerfile declares _what each service needs to run_. Keep runtime config (volumes, env vars, healthchecks) in the Dockerfile; let Compose just point at it.
+
+```yaml
+# docker-compose.yml — thin declaration ✅
+services:
+    api:
+        build:
+            context: ./services/api
+            target: dev # build the dev stage from the Dockerfile
+        env_file: .env
+        depends_on:
+            postgres:
+                condition: service_healthy
+        networks:
+            - frontend
+            - backend
+```
+
+Compare to the "fat" version — same service, but now Compose is duplicating what the Dockerfile already knows:
+
+```yaml
+# Option A — avoided ❌
+services:
+    api:
+        build:
+            context: ./services/api
+            target: dev
+        volumes:
+            - ./services/api:/var/www/html
+            - vendor:/var/www/html/vendor
+        ports:
+            - "8080:9000"
+        environment:
+            APP_ENV: local
+            DB_HOST: postgres
+            # ... lots more env vars ...
+        healthcheck:
+            test: ["CMD", "php-fpm-healthcheck"]
+            interval: 10s
+            timeout: 3s
+            retries: 3
+        networks:
+            - frontend
+            - backend
+        restart: unless-stopped
+```
+
+The "fat" version turns `docker-compose.yml` into a second place to maintain. When Dockerfile changes, you'd also need to update Compose — that's two sources of truth diverging over time.
+
+---
+
+### 2. How many Compose files, and what goes in each?
+
+**Two files:**
+
+```
+docker-compose.yml          # base: universal — what every developer gets
+docker-compose.override.yml # personal: host-specific overrides
+```
+
+Docker Compose **automatically merges** the override file when it's present. In CI the override won't exist — no special flags needed, the base runs as-is.
+
+**Split rule:** bind mounts and hot reload belong in **base** — they're universal, every developer needs them. Port remapping and personal tooling go in **override** — they're specific to one developer's machine.
+
+```yaml
+# docker-compose.yml — default port in base
+services:
+    api:
+        ports:
+            - "8080:9000"
+```
+
+```yaml
+# docker-compose.override.yml — developer with a port conflict
+services:
+    api:
+        ports:
+            - "8081:9000" # remapped on this machine only
+```
+
+> ⚠️ Compose **replaces** the entire `ports` list when overriding — it does not append. If you override one port, re-declare all the others you still want. Document this in the Makefile or `.env.example`.
+
+**CI target** (no override, just base):
+
+```makefile
+test-ci:
+    docker compose -f docker-compose.yml up -d
+```
+
+**Per-service fragments with `include:`** — as the team grows, each service owns its own Compose fragment to avoid merge conflicts:
+
+```yaml
+# docker-compose.yml
+include:
+    - services/api/compose.yml
+    - services/worker/compose.yml
+    - services/web/compose.yml
+    - infra/compose.yml
+```
+
+Each service team owns their fragment. Root `docker-compose.yml` just assembles them.
+
+---
+
+### 3. Networking: one shared network or segmented?
+
+**Decision: segmented networks.**
+
+```
+frontend network:  web ↔ api
+backend network:   api ↔ worker ↔ postgres ↔ broker
+```
+
+`web` cannot reach `postgres` directly. `worker` and `api` don't HTTP-call each other — they share infrastructure but are isolated from each other. The network topology enforces this and documents it simultaneously.
+
+**Why this matters beyond security:** violations fail _locally_ with a connection error rather than silently working locally and breaking in production. It also mirrors the intended Kubernetes `NetworkPolicy`, so local behavior predicts production behavior.
+
+```yaml
+networks:
+    frontend:
+    backend:
+
+services:
+    web:
+        networks:
+            - frontend
+
+    api:
+        networks:
+            - frontend
+            - backend
+
+    worker:
+        networks:
+            - backend
+
+    postgres:
+        networks:
+            - backend
+
+    broker:
+        networks:
+            - backend
+```
+
+---
+
+### 4. Dev/prod parity — what can differ, what must match?
+
+**Accepted divergence (local only):**
+
+- Bind mounts instead of baked-in source code
+- Ports forwarded to localhost
+- Single-replica services
+- No TLS between services
+- Debug-mode entrypoints (xdebug, watchmedo, nodemon)
+
+**Non-negotiable parity:**
+
+- OS and glibc — enforced by the shared Dockerfile `base` stage
+- Environment variable names — `.env.example` is the contract
+- **Service names for inter-service calls** — always `http://worker/`, never `http://localhost:8001/`
+- Healthcheck endpoints — if Kubernetes probes `/healthz`, Compose uses the same
+- `depends_on` ordering — model it locally if it matters in prod
+
+> **Critical:** Compose DNS and Kubernetes service discovery use the same naming model. Using `localhost` locally and a service name in prod is a class of bug that only shows up at deploy time.
+
+---
+
+### 5. Infrastructure services — shared or local?
+
+**Decision: run everything locally.** `make up` produces a fully self-contained environment. No shared dev databases, no required internet access.
+
+**Postgres data — bind mount, not named volume:**
+
+```yaml
+services:
+    postgres:
+        image: postgres:16-bookworm
+        volumes:
+            - ./data/postgres:/var/lib/postgresql/data
+        networks:
+            - backend
+```
+
+```
+# .gitignore
+/data/
+```
+
+Using a bind mount (a local directory) instead of a Docker named volume means `docker compose down` cleans up containers and the data is just a folder on disk — visible, inspectable, deletable without Docker commands.
+
+**Seeding:**
+
+```makefile
+seed:
+    docker compose exec postgres psql -U ${DB_USER} -d ${DB_NAME} -f /docker-entrypoint-initdb.d/seed.sql
+```
+
+SQL fixtures are committed to the repo — every developer gets the same dataset. `make seed` is a first-class Makefile target alongside `make up`.
+
+> **Note for larger projects:** Factory + Seeders with a fixed random seed (`Faker.seed(12345)`) is better at scale. A fixed seed produces identical datasets across machines — shareable bug reproduction, deterministic CI, no "works on my machine" data issues.
+
+---
+
+## Decisions at a glance
+
+| Sub-problem         | Decision                                                                                                     |
+| ------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Service declaration | Thin — Compose declares topology, Dockerfile declares runtime                                                |
+| File split          | Base for universal, override for host-specific; `include:` per service                                       |
+| Networking          | Segmented: `frontend` (web ↔ api), `backend` (api ↔ worker ↔ infra)                                          |
+| Dev/prod parity     | Service names always, localhost never; healthchecks mirrored; divergence accepted on ports, mounts, replicas |
+| Infrastructure      | All local; Postgres via bind mount in `./data/`; fixtures for seeding; `make down` cleans containers only    |
+
+---
+
+## Still open
+
+- **Message broker:** confirmed needed (worker needs a feed mechanism), implementation not yet chosen. Add as a placeholder in `infra/compose.yml` when decided.
+- **Fragment ownership:** each service directory owns its `compose.yml`; `infra/compose.yml` owns postgres and broker; root `docker-compose.yml` contains only `include:` directives and top-level network declarations.
+
+## Docker Compose files
+
+### Infra
+
+```yaml
+include:
+    - services/api/compose.yml
+    - services/worker/compose.yml
+    - services/web/compose.yml
+    - infra/compose.yml
+
+networks:
+    frontend:
+    backend:
+```
+
+### Local Override
+
+```yaml
+# docker-compose.override.yml
+#
+# Personal host overrides. This file is gitignored — copy from
+# docker-compose.override.yml.example and adjust to your machine.
+#
+# PORT REMAPPING
+# Default ports are declared in each service's compose.yml.
+# If you have a conflict on your host, override the port here.
+# Note: Compose replaces the entire `ports` list for a service,
+# not individual entries. Re-declare every port you still want.
+#
+# Example — remap api from 8080 to 8081:
+#
+# services:
+#   api:
+#     ports:
+#       - "8081:9000"
+#
+# PERSONAL TOOLING
+# Mount personal config files or attach a local proxy.
+#
+# Example — mount a personal Xdebug config:
+#
+# services:
+#   api:
+#     volumes:
+#       - ./xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini:ro
+```
+
+### API
+
+```yaml
+services:
+    api:
+        build:
+            context: ./services/api
+            target: dev
+        env_file: .env
+        volumes:
+            - ./services/api:/var/www/html
+            - vendor:/var/www/html/vendor
+        ports:
+            - "8080:9000"
+        depends_on:
+            postgres:
+                condition: service_healthy
+            broker:
+                condition: service_healthy
+        networks:
+            - frontend
+            - backend
+        restart: unless-stopped
+
+volumes:
+    vendor:
+```
+
+### Workers
+
+```yaml
+services:
+    worker:
+        build:
+            context: ./services/worker
+            target: dev
+        env_file: .env
+        volumes:
+            - ./services/worker:/app
+            - venv:/app/.venv
+        depends_on:
+            postgres:
+                condition: service_healthy
+            broker:
+                condition: service_healthy
+        networks:
+            - backend
+        restart: unless-stopped
+
+volumes:
+    venv:
+```
+
+### Web Frontend
+
+```yaml
+services:
+    web:
+        build:
+            context: ./services/web
+            target: dev
+        env_file: .env
+        volumes:
+            - ./services/web:/app
+            - node_modules:/app/node_modules
+        ports:
+            - "3000:3000"
+        depends_on:
+            - api
+        networks:
+            - frontend
+        restart: unless-stopped
+
+volumes:
+    node_modules:
+```
+
+### postgresql
+
+```yaml
+services:
+    postgres:
+        image: postgres:16-bookworm
+        env_file: .env
+        volumes:
+            - ./data/postgres:/var/lib/postgresql/data
+            - ./infra/postgres/seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+        healthcheck:
+            test:
+                [
+                    "CMD-SHELL",
+                    "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}",
+                ]
+            interval: 5s
+            timeout: 3s
+            retries: 5
+        networks:
+            - backend
+
+    # broker:
+    #   image: <chosen broker image>
+    #   env_file: .env
+    #   healthcheck:
+    #     test: [...]
+    #     interval: 5s
+    #     timeout: 3s
+    #     retries: 5
+    #   networks:
+    #     - backend
+```

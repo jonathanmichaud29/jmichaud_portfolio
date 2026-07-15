@@ -26,8 +26,9 @@ Portfolio Website
 
 **Blog** : http://localhost:4321/blog
 **Single post** : http://localhost:4321/blog/hello-world
-**Single post in a serie** : http://localhost:4321/blog/docker-networking-pt1
-**Serie's posts** : http://localhost:4321/series/docker-networking
+
+**Serie's posts** : http://localhost:4321/series/ai-instructions
+**Single post in a serie** : http://localhost:4321/blog/ai-instructions-pt1
 
 ### Production build simulation
 

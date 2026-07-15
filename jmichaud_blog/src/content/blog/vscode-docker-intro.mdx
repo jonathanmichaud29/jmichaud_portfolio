@@ -1,0 +1,55 @@
+---
+type: tech-article
+title: "Overview of a team project setup"
+description: ""
+publishedAt: 2026-01-01
+proficiencyLevel: intermediate
+dependencies:
+    - vscode
+    - docker
+series: vscode-docker-setup
+seriesPart: 1
+tags:
+    - vscode
+    - docker
+    - coordination
+---
+
+## What are the challenges
+
+1. Coding standards
+
+- How a dev team coordinate to have a unified code?
+
+Docs
+
+- https://claude.ai/chat/84013e10-c942-4ccf-8365-82ba5142c0a5
+
+2. Repository structure - part 2
+
+This shapes where devcontainer.json lives, how Compose files are organized, and how a developer works across multiple services simultaneously.
+
+Docs
+
+- https://claude.ai/chat/84013e10-c942-4ccf-8365-82ba5142c0a5
+- https://claude.ai/chat/45beafba-f594-441c-9da6-a9b0bffad7c9
+
+- What are the pros and cons and at which step the unification should happens?
+- Separation between the host and the containers task.
+
+3. Base image strategy - part 3
+
+Which base images, who maintains them, how they're versioned and pinned.
+This is the foundation every devcontainer.json and Compose service is built on.
+A wrong call here is expensive to undo.
+
+Docs
+
+- https://claude.ai/chat/492d652b-f46a-4b8c-ac34-fbd248b88d30
+
+- How to structure a new project? monorepo, polyrepo, meta-repos
+- Sharable types
+
+4. Docker Compose topology - part 4
+
+How services are declared, networked, and orchestrated locally. Includes how the local topology maps to Kubernetes in prod — where you accept divergence and where you enforce parity.
