@@ -1,0 +1,141 @@
+{
+  // ============================================================
+  // services/api/.devcontainer/devcontainer.json
+  //
+  // Targets the `dev` stage of services/api/Dockerfile.
+  // Model 1: devcontainer shares the same base as production.
+  // No Microsoft pre-built images. No host installs beyond git
+  // and the hook runner (pre-commit / husky).
+  //
+  // OPEN STUB: `mounts` is intentionally absent here.
+  // Vendor/, node_modules/ placement is blocked on the volume
+  // strategy decision (topic 5 in the project order). Do not
+  // add bind mounts or named volumes for dep directories until
+  // that decision is recorded.
+  // ============================================================
+
+  "name": "api",
+
+  // Build the `dev` stage from the service Dockerfile.
+  // Dockerfile lives at services/api/Dockerfile.
+  // context is services/api/ so COPY instructions resolve correctly.
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": "..",
+    "target": "dev"
+  },
+
+  // The workspace folder inside the container.
+  // VS Code mounts the folder containing .devcontainer/ by default,
+  // which is services/api/. Being explicit prevents surprises if
+  // the default ever changes.
+  //
+  // Cross-service navigation (packages/, other services) is handled
+  // by the multi-root workspace (topic 8) — not by mounting the
+  // monorepo root here.
+  "workspaceFolder": "/workspace",
+
+  // Run as a non-root user.
+  // `appuser` must be created in the Dockerfile dev stage with UID 1000:
+  //   RUN useradd -ms /bin/bash appuser
+  // UID/GID mapping to the host user is addressed in topic 6.
+  "remoteUser": "appuser",
+
+  // ============================================================
+  // Extensions
+  //
+  // Rule: only extensions that require a binary present in this
+  // container belong here. Themes, keymaps, Copilot, GitLens,
+  // and anything purely personal go in user settings — not here.
+  //
+  // Workspace-level recommendations (optional, non-enforced) go
+  // in services/api/.vscode/extensions.json instead.
+  // ============================================================
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        // PHP — IntelliSense, hover, go-to-definition. Requires
+        // the php binary on PATH inside the container.
+        "bmewburn.vscode-intelephense-client",
+
+        // PHP — Xdebug debug adapter. Requires php-xdebug extension
+        // installed in the container and a matching launch.json.
+        // Path mappings in launch.json depend on workspaceFolder above.
+        "xdebug.php-debug",
+
+        // TypeScript — used for the OpenAPI → TS codegen output
+        // that lives in packages/types/ and for any TS tooling in api.
+        // NOTE: api needs Node in its dev stage specifically for this
+        // codegen pipeline (`make types`). Node is tooling-only here;
+        // it never serves traffic. This is the one justified exception
+        // to the "no PHP + Node in the same container" principle.
+        "ms-vscode.vscode-typescript-next"
+      ],
+      "settings": {
+        // Point Intelephense at the php binary inside the container.
+        // Adjust path if the Dockerfile installs php elsewhere.
+        "php.executablePath": "/usr/local/bin/php",
+        "php.validate.executablePath": "/usr/local/bin/php",
+
+        // Use the TypeScript version from the container's node_modules,
+        // not VS Code's bundled version. Keeps compiler and editor in sync.
+        "typescript.tsdk": "/workspace/node_modules/typescript/lib",
+
+        // Format-on-save with Prettier (via prettier-php or standalone).
+        // Requires prettier and @prettier/plugin-php in package.json.
+        "editor.formatOnSave": true,
+        "[php]": {
+          "editor.defaultFormatter": "bmewburn.vscode-intelephense-client"
+        },
+        "[typescript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[json]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        }
+      }
+    }
+  },
+
+  // ============================================================
+  // Port forwarding
+  //
+  // Forward only ports a developer needs to reach from the host
+  // browser or Postman. Internal Compose network ports (database,
+  // redis, inter-service calls) stay inside the Compose network
+  // and are never forwarded here.
+  // ============================================================
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": {
+      "label": "PHP-FPM / nginx",
+      "onAutoForward": "notify"
+    }
+  },
+
+  // ============================================================
+  // Lifecycle scripts
+  //
+  // postCreateCommand runs once, when the container is first built.
+  //
+  // Deps (composer install, npm ci) are NOT run here — they are
+  // already installed in the Dockerfile `base` stage and are
+  // present in the image layer. Running them again here would
+  // either be a no-op or overwrite the layer with a host-mounted
+  // volume (volume strategy TBD, topic 5).
+  //
+  // What belongs here:
+  //   1. git safe.directory — prevents "dubious ownership" warnings
+  //      when the container user (appuser, UID 1000) differs from
+  //      the file owner set by the host mount.
+  //   2. .env bootstrap — copies .env.example to .env if .env is
+  //      absent. Developer then fills in secrets manually.
+  //      Idempotent: the `test -f` guard prevents clobbering.
+  // ============================================================
+  "postCreateCommand": "git config --global --add safe.directory /workspace && test -f /workspace/.env || cp /workspace/.env.example /workspace/.env",
+
+  // postStartCommand runs on every container start.
+  // Services (php-fpm, nginx) are managed by Docker Compose, not here.
+  // Nothing to do on start beyond what Compose handles.
+  "postStartCommand": ""
+}

@@ -1,0 +1,20 @@
+services:
+    worker:
+        build:
+            context: ./services/worker
+            target: dev
+        env_file: .env
+        volumes:
+            - ./services/worker:/app
+            - venv:/app/.venv
+        depends_on:
+            postgres:
+                condition: service_healthy
+            broker:
+                condition: service_healthy
+        networks:
+            - backend
+        restart: unless-stopped
+
+volumes:
+    venv:

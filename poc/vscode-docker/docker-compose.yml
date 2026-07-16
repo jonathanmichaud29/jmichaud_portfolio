@@ -1,0 +1,9 @@
+include:
+    - services/api/compose.yml
+    - services/worker/compose.yml
+    - services/web/compose.yml
+    - services/db/compose.yml
+
+networks:
+    frontend:
+    backend:

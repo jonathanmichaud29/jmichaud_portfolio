@@ -1,0 +1,108 @@
+{
+  // ============================================================
+  // services/worker/.devcontainer/devcontainer.json
+  //
+  // Targets the `dev` stage of services/worker/Dockerfile.
+  // Base image: python:3.12-slim-bookworm (Debian, not Alpine —
+  // required for glibc-linked wheels like cryptography).
+  //
+  // Worker processes have no HTTP surface. No ports are forwarded.
+  // The developer attaches here to write job code, run tests,
+  // and use the Python debugger.
+  //
+  // OPEN STUB: `mounts` intentionally absent.
+  // .venv / site-packages placement blocked on volume strategy
+  // (topic 5). Do not add dep-directory mounts until that
+  // decision is recorded.
+  // ============================================================
+
+  "name": "worker",
+
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": "..",
+    "target": "dev"
+  },
+
+  "workspaceFolder": "/workspace",
+
+  // `appuser` (UID 1000) created in Dockerfile dev stage.
+  // Consistent UID across all three services simplifies the
+  // UID/GID mapping decision in topic 6.
+  "remoteUser": "appuser",
+
+  // ============================================================
+  // Extensions
+  //
+  // All three are required — they resolve the Python interpreter,
+  // type stubs, and debug adapter from the container's Python
+  // installation. None of these work correctly if VS Code
+  // resolves them from the host (which has no Python).
+  // ============================================================
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        // Core Python extension — interpreter selection, test
+        // discovery, terminal integration. Requires python binary.
+        "ms-python.python",
+
+        // Pylance — static type checker and IntelliSense engine.
+        // Requires the Python interpreter to resolve imports.
+        "ms-python.vscode-pylance",
+
+        // debugpy — debug adapter for breakpoints, variable
+        // inspection, and remote attach. Installed as a package
+        // in the container; this extension is the VS Code client.
+        "ms-python.debugpy"
+      ],
+      "settings": {
+        // Point VS Code at the interpreter inside the container.
+        // If using a venv, update this path to the venv python.
+        // Volume strategy (topic 5) will determine the final path.
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+
+        // Pylance type checking mode.
+        // "basic" catches common errors without being noisy.
+        // Raise to "strict" once the codebase has good annotation coverage.
+        "python.analysis.typeCheckingMode": "basic",
+
+        // Run tests with pytest (assumed — adjust if using unittest).
+        "python.testing.pytestEnabled": true,
+        "python.testing.unittestEnabled": false,
+
+        // Format on save with ruff (fast, Rust-based, replaces black + isort).
+        // Requires ruff in requirements.txt / pyproject.toml.
+        "editor.formatOnSave": true,
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff"
+        }
+      }
+    }
+  },
+
+  // ============================================================
+  // Port forwarding
+  //
+  // Workers have no HTTP surface — no ports forwarded.
+  // If a specific worker exposes a health check endpoint or
+  // Flower (Celery monitoring), add it here at that point.
+  // ============================================================
+  "forwardPorts": [],
+
+  // ============================================================
+  // Lifecycle scripts
+  //
+  // Same rationale as api: pip install runs in the Dockerfile
+  // base stage, so it is not repeated here.
+  //
+  // safe.directory and .env bootstrap are the only justified
+  // postCreateCommand actions.
+  //
+  // If using a venv that lives outside the image (volume-mounted
+  // .venv), pip install -e . would move here — but that depends
+  // on the volume strategy decision. Leave it out until then.
+  // ============================================================
+  "postCreateCommand": "git config --global --add safe.directory /workspace && test -f /workspace/.env || cp /workspace/.env.example /workspace/.env",
+
+  "postStartCommand": ""
+}

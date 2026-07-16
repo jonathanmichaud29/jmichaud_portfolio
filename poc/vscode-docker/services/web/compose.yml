@@ -1,0 +1,20 @@
+
+services:
+    web:
+        build:
+            context: ./services/web
+            target: dev
+        env_file: .env
+        volumes:
+            - ./services/web:/app
+            - node_modules:/app/node_modules
+        ports:
+            - "3000:3000"
+        depends_on:
+            - api
+        networks:
+            - frontend
+        restart: unless-stopped
+
+volumes:
+    node_modules:

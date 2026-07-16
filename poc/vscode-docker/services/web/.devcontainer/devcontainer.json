@@ -1,0 +1,146 @@
+{
+  // ============================================================
+  // services/web/.devcontainer/devcontainer.json
+  //
+  // Targets the `dev` stage of services/web/Dockerfile.
+  // Base image for dev: node:22-alpine (musl is fine for Node).
+  // Production base is nginx:alpine — the Node runtime never
+  // reaches production. The web Dockerfile has three stages:
+  //   base → dev   (this devcontainer)
+  //   base → build (CI artifact)
+  //   nginx → prod (consumes /dist only)
+  //
+  // The developer attaches here to run Vite, write React
+  // components, and run the TypeScript compiler.
+  //
+  // OPEN STUB: `mounts` intentionally absent.
+  // node_modules placement (image layer vs named volume vs
+  // bind mount) is blocked on the volume strategy decision
+  // (topic 5). This is the highest-stakes mount decision
+  // in the project — node_modules on Alpine with a macOS
+  // host bind mount has well-known performance implications.
+  // Do not add node_modules mounts until topic 5 is settled.
+  // ============================================================
+
+  "name": "web",
+
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": "..",
+    "target": "dev"
+  },
+
+  "workspaceFolder": "/workspace",
+
+  "remoteUser": "appuser",
+
+  // ============================================================
+  // Extensions
+  //
+  // TypeScript, ESLint, and Prettier all resolve config and
+  // binaries from the container. ESLint in particular will
+  // fail to load plugins (eslint-config from packages/eslint-config/)
+  // if it tries to run from the host.
+  //
+  // If the team adopts Tailwind, add bradlc.vscode-tailwindcss here.
+  // It requires the tailwindcss binary to generate completions.
+  // ============================================================
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        // TypeScript language server — uses the version from
+        // node_modules, not VS Code's bundled tsc.
+        "ms-vscode.vscode-typescript-next",
+
+        // ESLint — runs the eslint binary from node_modules.
+        // Picks up the shared eslint-config from packages/eslint-config/
+        // via the workspace reference in package.json.
+        "dbaeumer.vscode-eslint",
+
+        // Prettier — formatter for TS, TSX, JSON, CSS.
+        // Runs the prettier binary from node_modules.
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        // Use the TypeScript version installed in the container,
+        // not VS Code's bundled one. Critical for keeping editor
+        // diagnostics and tsc output in sync.
+        "typescript.tsdk": "/workspace/node_modules/typescript/lib",
+
+        // Enable TypeScript project references so the editor
+        // resolves packages/types/ via the workspace tsconfig.
+        "typescript.enableProjectDiagnostics": true,
+
+        // Format on save. Prettier handles TS, TSX, JSON, CSS.
+        // ESLint handles lint errors separately — do not use
+        // eslint as a formatter here; keep the two concerns apart.
+        "editor.formatOnSave": true,
+        "[typescript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[typescriptreact]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[json]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[css]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+
+        // Run ESLint on save as a separate pass after formatting.
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": "explicit"
+        },
+
+        // Tell ESLint where to find the workspace root so it
+        // resolves the shared eslint-config package correctly.
+        "eslint.workingDirectories": [
+          { "directory": "/workspace", "changeProcessCWD": true }
+        ]
+      }
+    }
+  },
+
+  // ============================================================
+  // Port forwarding
+  //
+  // 5173 — Vite dev server (default port).
+  // If the team changes the Vite port in vite.config.ts,
+  // update this to match.
+  //
+  // The production nginx server (port 80 inside the prod
+  // container) is never forwarded from the dev stage.
+  // ============================================================
+  "forwardPorts": [5173],
+  "portsAttributes": {
+    "5173": {
+      "label": "Vite dev server",
+      "onAutoForward": "openBrowser"
+      // openBrowser: VS Code opens the browser automatically
+      // when the port comes up. Change to "notify" if that's
+      // too aggressive for the team.
+    }
+  },
+
+  // ============================================================
+  // Lifecycle scripts
+  //
+  // npm ci runs in the Dockerfile base stage — not repeated here.
+  //
+  // One web-specific consideration: if node_modules ends up on
+  // a named volume (the likely volume strategy outcome for
+  // performance reasons on macOS), the named volume is empty on
+  // first attach and npm ci would need to run here instead of
+  // in the image. This is the postCreateCommand that will change
+  // most significantly after topic 5 is resolved.
+  //
+  // For now: same minimal bootstrap as api and worker.
+  // ============================================================
+  "postCreateCommand": "git config --global --add safe.directory /workspace && test -f /workspace/.env || cp /workspace/.env.example /workspace/.env",
+
+  // Vite dev server (`npm run dev`) is not started here.
+  // It's started by Docker Compose so logs are captured
+  // centrally and the process lifecycle is managed consistently.
+  "postStartCommand": ""
+}
