@@ -1,0 +1,207 @@
+---
+type: tech-article
+title: "Dev Container configuration for a PHP, Python, and TypeScript monorepo"
+description: "How to write devcontainer.json for a multi-service monorepo — which decisions are mechanical, which are opinionated, and why the volume strategy is the one thing you cannot settle yet."
+publishedAt: 2026-07-16
+proficiencyLevel: intermediate
+dependencies:
+    - vscode
+    - docker
+    - docker-compose
+series: vscode-docker-setup
+seriesPart: 16
+tags:
+    - vscode
+    - docker
+    - devcontainers
+    - php
+    - python
+    - typescript
+    - monorepo
+---
+
+# Summary: Dev Container Configuration for a PHP, Python & TypeScript Monorepo
+
+> **Original article:** Part 6 of the `vscode-docker-setup` series — intermediate level  
+> **Audience:** Developers newer to devcontainers who want to follow the tech lead's chain of thought
+
+---
+
+## What this document is about
+
+This article explains how to write `devcontainer.json` for a monorepo with three services:
+
+- `api` — PHP + TypeScript
+- `worker` — Python
+- `web` — TypeScript + React
+
+It builds on three prior decisions from earlier parts of the series:
+
+1. Each service lives under `services/<name>/` with a root `docker-compose.yml`.
+2. Base images are upstream images pinned by SHA-256 digest, with multi-stage Dockerfiles (`base → dev`, `base → prod`). **No** Microsoft pre-built devcontainer images.
+3. Nothing is installed on the host — all runtimes and language servers run inside containers.
+
+`devcontainer.json`'s job is narrow: tell VS Code **which container to attach to**, **which extensions to install**, **which ports to forward**, and **what to run once on first build**.
+
+---
+
+## The 6 decisions — and the reasoning behind each
+
+### 1. `build` vs `image` — _mechanical (no debate needed)_
+
+Because the Dockerfiles already have a `dev` stage (Model 1), `devcontainer.json` always uses `"build"` pointing at that stage. There is no separate devcontainer image to pull.
+
+```json
+"build": {
+  "dockerfile": "../Dockerfile",
+  "context": "..",
+  "target": "dev"
+}
+```
+
+`context` points to the service directory so `COPY` instructions in the Dockerfile resolve correctly.
+
+---
+
+### 2. Extensions — _opinionated_
+
+**The rule:** only add an extension to `devcontainer.json` if it **requires a binary inside the container** to work. Everything else (themes, keymaps, personal tools) belongs in user settings — not committed to the repo.
+
+Why? Because `devcontainer.json` applies to **every developer on the team**. Forcing personal preferences on colleagues is overreach.
+
+| Extension                             | Service  | Why it belongs here                                                  |
+| ------------------------------------- | -------- | -------------------------------------------------------------------- |
+| `bmewburn.vscode-intelephense-client` | api      | Needs `php` on `PATH` for hover/go-to-definition                     |
+| `xdebug.php-debug`                    | api      | Debug adapter for `php-xdebug` in the container                      |
+| `ms-vscode.vscode-typescript-next`    | api, web | Uses `typescript` from `node_modules`, not VS Code's bundled version |
+| `ms-python.python`                    | worker   | Interpreter selection, terminal integration                          |
+| `ms-python.vscode-pylance`            | worker   | Type inference resolves imports from the container's `site-packages` |
+| `ms-python.debugpy`                   | worker   | Debug adapter; `debugpy` must be installed in the container          |
+| `dbaeumer.vscode-eslint`              | web      | Runs `eslint` from `node_modules`, picks up shared config            |
+| `esbenp.prettier-vscode`              | web      | Runs `prettier` from `node_modules`                                  |
+
+---
+
+### 3. Port forwarding — _opinionated_
+
+Only forward ports a developer needs to reach **from the host** (browser or API client). Internal Compose network ports (DB, Redis, inter-service) stay inside the Compose network — never listed here.
+
+| Service | Port | Label                              |
+| ------- | ---- | ---------------------------------- |
+| api     | 8080 | PHP-FPM / nginx                    |
+| worker  | —    | No HTTP surface; nothing forwarded |
+| web     | 5173 | Vite dev server                    |
+
+Labeling ports with `portsAttributes` is a small but important onboarding detail: a new developer sees `"Vite dev server"` instead of just `"5173"` in the VS Code Remote Explorer.
+
+---
+
+### 4. Lifecycle scripts — _the most consequential decision_
+
+VS Code exposes four hooks. Getting them wrong causes subtle bugs (processes started twice, port conflicts, dep installs clobbering image layers).
+
+| Hook                | When it runs                   | Rule for this project                               |
+| ------------------- | ------------------------------ | --------------------------------------------------- |
+| `onCreateCommand`   | Before workspace is mounted    | Useless here — can't see source code                |
+| `postCreateCommand` | Once, on first container build | ✅ One-time setup that needs the workspace          |
+| `postStartCommand`  | Every container start          | Keep nearly empty — services are managed by Compose |
+| `postAttachCommand` | When VS Code attaches          | Use sparingly — runs in a visible terminal          |
+
+**Key insight:** because the `base` Dockerfile stage already installs all deps (`composer install`, `pip install`, `npm ci`), `postCreateCommand` has almost nothing to do. Running those again here would be redundant — the deps are already in the image layer.
+
+What legitimately belongs in `postCreateCommand` (same across all three services):
+
+```bash
+git config --global --add safe.directory /workspace \
+  && test -f /workspace/.env || cp /workspace/.env.example /workspace/.env
+```
+
+Two things only:
+
+- **`git safe.directory`** — prevents a "dubious ownership" error when the container user's UID doesn't match the file owner from the host bind mount (common on macOS with Docker Desktop).
+- **`.env` bootstrap** — copies `.env.example` to `.env` only if `.env` doesn't exist yet. Idempotent, non-destructive.
+
+If the services needed different bootstrap logic here, it would be a signal that the Dockerfile stage design is wrong.
+
+---
+
+### 5. `remoteUser` — _opinionated_
+
+**Never run as root inside a devcontainer.** File ownership, security posture, and production parity all suffer.
+
+Since this project already decided against Microsoft base images (which provide a `vscode` user via `devcontainer-utils`), the answer is an explicit user in the Dockerfile's `dev` stage:
+
+```dockerfile
+FROM base AS dev
+
+# ... install dev tooling as root ...
+
+RUN useradd -ms /bin/bash appuser
+
+USER appuser
+```
+
+**Order matters:** install everything that needs root first, create the user, `chown` any directories the user needs to write to, _then_ drop privileges. Switching to `appuser` mid-stage and then calling `apt-get` will fail.
+
+Using UID 1000 consistently across all three services simplifies the UID/GID mapping that comes next in the project.
+
+---
+
+### 6. Mounts — _intentionally deferred_
+
+`devcontainer.json` supports a `mounts` key for bind mounts and named volumes (e.g., for `vendor/`, `node_modules/`, `.venv`). **This decision is not made here** — it depends on the volume strategy decision (topic 5 in the project order).
+
+Writing `mounts` config before that's settled risks having to undo it immediately. The files produced here omit `mounts` entirely with a comment explaining why. A devcontainer without explicit `mounts` still works — VS Code bind-mounts the workspace by default.
+
+---
+
+## The tension worth naming
+
+The "no single container running PHP + Python + Node" rule has one justified exception: the `api` service's `dev` stage needs Node to run `make types` (a codegen pipeline: PHP annotations → `openapi.json` → `packages/types/`).
+
+This is fine, but it must be made visible with a comment in the Dockerfile — otherwise the next developer will read it as an inconsistency and remove Node "to clean things up":
+
+```dockerfile
+# Node is installed here for the `make types` codegen pipeline only
+# (PHP annotations → openapi.json → packages/types/).
+# It does not serve traffic. The "no PHP + Node" principle applies
+# to runtime services, not to build tooling.
+RUN apt-get install -y nodejs npm
+```
+
+---
+
+## What will change after volume strategy is settled
+
+The `web` service has the most pressure. If `node_modules` moves to a named volume (likely for macOS performance — bind-mounting `node_modules` from macOS into an Alpine container is notoriously slow), the named volume will be **empty** on first attach because the image layer's `node_modules` is not visible through a named volume mount.
+
+At that point, `npm ci` moves from the Dockerfile `base` stage into `postCreateCommand`:
+
+```json
+"postCreateCommand": "git config --global --add safe.directory /workspace && test -f /workspace/.env || cp /workspace/.env.example /workspace/.env && npm ci"
+```
+
+The same applies to `worker` if `.venv` moves to a named volume: `pip install -e .` migrates into `postCreateCommand`, and `python.defaultInterpreterPath` shifts to `/workspace/.venv/bin/python`.
+
+**This is not a reason to delay writing the files.** It's a reason to leave clear comments marking the settings that will change, so the volume strategy discussion starts with a concrete list of what it affects.
+
+---
+
+## Final file structure
+
+Each service gets its own `devcontainer.json`. They share the same structure and `postCreateCommand`, and differ only in extensions, port forwarding, and language-specific editor settings.
+
+```
+services/
+  api/
+    .devcontainer/
+      devcontainer.json     # PHP + TS, port 8080, Intelephense + Xdebug + TS
+  worker/
+    .devcontainer/
+      devcontainer.json     # Python, no ports, Pylance + debugpy
+  web/
+    .devcontainer/
+      devcontainer.json     # TS + React, port 5173, ESLint + Prettier + TS
+```
+
+The workspace root for each devcontainer is its own service directory (`/workspace`), not the monorepo root. Cross-service navigation (e.g., editing `packages/types/` from inside `web/`) is handled by VS Code's multi-root workspace config — a separate decision (topic 8).
