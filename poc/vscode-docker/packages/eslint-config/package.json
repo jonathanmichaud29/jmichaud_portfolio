@@ -1,0 +1,7 @@
+// packages/eslint-config/package.json
+{
+  "name": "@myorg/types",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./index.ts"
+}

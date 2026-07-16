@@ -1,0 +1,266 @@
+---
+type: tech-article
+title: "Volume Strategy — Bind Mounts, Named Volumes, and npm Workspaces"
+description: "How we decided where source code, dependency directories, and shared packages live across containers — and why macOS, live edits, and monorepo structure drove every call."
+publishedAt: 2026-07-16
+proficiencyLevel: intermediate
+dependencies:
+    - docker
+    - vscode
+    - node
+series: vscode-docker-setup
+seriesPart: 17
+tags:
+    - docker
+    - volumes
+    - npm-workspaces
+    - devcontainer
+    - monorepo
+    - typescript
+---
+
+# Summary — Volume Strategy: Bind Mounts, Named Volumes, and npm Workspaces
+
+**Original article:** Part 7 of the VSCode + Docker monorepo series
+**Topic:** Where source code, `node_modules`, and shared packages physically live across containers — and why.
+
+---
+
+## Why this decision matters
+
+Volume strategy controls three things that directly affect developer experience:
+
+- Whether you can **edit code and see changes instantly** (hot reload)
+- Whether **`npm install` is fast** (especially painful on macOS)
+- Whether **shared TypeScript packages** (like `packages/types/`) are live without reinstalling
+
+The decision was deferred from Part 4 because it directly feeds `devcontainer.json` — specifically the `mounts` field and `postCreateCommand`.
+
+---
+
+## The stack
+
+| Layer              | Service  |
+| ------------------ | -------- |
+| PHP + TypeScript   | `api`    |
+| Python             | `worker` |
+| TypeScript + React | `web`    |
+
+Developer OS: macOS and Linux (mixed team).
+
+---
+
+## Problem 1 — Source code → Always a bind mount
+
+Source code is mounted directly from the host into the container using a **bind mount**. This is what enables live editing (changing a file on your machine is immediately reflected inside the container).
+
+The tricky part: because npm workspaces (Problem 3) move `node_modules` to the monorepo root, the mount target shifted from the service directory to the full repo root.
+
+```yaml
+# services/web/compose.yml
+volumes:
+    - ../..:/repo # bind mount: monorepo root → /repo inside container
+```
+
+`workspaceFolder` in `devcontainer.json` then points to the specific service: `/repo/services/web`.
+
+---
+
+## Problem 2 — `node_modules` → Named Docker volume (not bind mount)
+
+This is the most impactful decision, especially for macOS users.
+
+### Options that were evaluated
+
+| Option                                                 | What it does                                           | Why rejected                               |
+| ------------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------ |
+| **A** — Named volume + `npm ci` in `postCreateCommand` | Deps live in Docker, installed explicitly after attach | ✅ **Chosen**                              |
+| **B** — Bind mount on host                             | Deps on your local disk, mounted in                    | Slow on macOS (VirtioFS I/O overhead)      |
+| **C** — `:cached`/`:delegated` hints                   | Old Docker Desktop flags                               | Removed in Docker Desktop 4.x — no-ops now |
+| **D** — Named volume pre-populated from image layer    | Deps installed at build time, volume auto-initialized  | Silent staleness bug (see below)           |
+
+### Why Option D is a trap
+
+Docker will auto-populate a named volume from the image layer **only if the volume is empty**. Once it exists, it's never re-initialized — even after you rebuild the image with updated deps. Result: the container silently runs stale packages with no error message. Recovery requires `docker compose down -v`, which also destroys database volumes. Developers find this opaque and destructive.
+
+### The chosen approach — Option A
+
+```yaml
+# services/web/compose.yml
+volumes:
+    - ../..:/repo
+    - node_modules:/repo/node_modules # named volume — Docker manages this, not the host
+```
+
+- `node_modules` never touches the host filesystem → no macOS I/O penalty
+- `npm ci` in `postCreateCommand` installs deps explicitly when you attach → transparent and auditable
+- The named volume persists across container restarts → no reinstall on every `up`
+
+### Safe reset — don't use `down -v`
+
+`docker compose down -v` nukes **all** named volumes including database data. Instead, a Makefile target removes only the JS volume:
+
+```makefile
+reset-js:
+	docker compose down
+	docker volume rm my-project_node_modules
+	docker compose up -d web
+```
+
+Volume names must be explicit (not relying on Compose's auto-generated prefixes) so scripts can target them reliably.
+
+---
+
+## Problem 3 — Shared packages → npm workspaces
+
+`packages/types/` contains TypeScript types generated from PHP. Developers edit these constantly. The requirement: edits must be **immediately visible** to the TypeScript compiler — no reinstall, no rebuild.
+
+### Option rejected: `file:` references
+
+```json
+{
+    "dependencies": {
+        "@myorg/types": "file:../../packages/types"
+    }
+}
+```
+
+`npm ci` **copies** the package into `node_modules` at install time. Live edits to `packages/types/` are invisible until you run `npm ci` again. Rejected.
+
+### Option chosen: npm workspaces
+
+A root `package.json` declares the workspace. npm **symlinks** workspace packages into `node_modules` instead of copying them — so edits to `packages/types/` are immediately visible.
+
+```json
+// root package.json
+{
+    "private": true,
+    "workspaces": [
+        "services/web",
+        "packages/types",
+        "packages/eslint-config",
+        "packages/tsconfig-base"
+    ]
+}
+```
+
+Each service references shared packages with `"*"` to always use the local workspace version:
+
+```json
+// services/web/package.json
+{
+    "dependencies": {
+        "@myorg/types": "*"
+    }
+}
+```
+
+### Consequence: `node_modules` hoists to the monorepo root
+
+With workspaces, npm puts `node_modules` at `/repo/node_modules` (the monorepo root), not inside each service. This is why the bind mount and `workspaceFolder` changed in Problem 1.
+
+### Scaling note — Turborepo
+
+With a shared `node_modules`, two services depending on different versions of the same package cause **hoisting conflicts**. npm handles this for now (keeps one version at root, the other in the service's local `node_modules`), but it gets painful at scale.
+
+**Turborepo** solves this. It sits on top of npm workspaces and adds parallel task execution, remote caching, and dependency-aware ordering. The workspace declaration above is already the foundation Turborepo needs — adopting it later requires only:
+
+- Adding `turbo` as a `devDependency`
+- Adding a `turbo.json` pipeline config
+
+No restructuring needed. This path is documented so the next developer doesn't repeat the analysis.
+
+---
+
+## Final file shapes
+
+### `services/web/compose.yml`
+
+```yaml
+services:
+    web:
+        build:
+            context: ../..
+            dockerfile: services/web/Dockerfile
+            target: dev
+        env_file: .env
+        volumes:
+            - ../..:/repo
+            - node_modules:/repo/node_modules
+        ports:
+            - "5173:5173"
+        networks:
+            - frontend
+
+volumes:
+    node_modules:
+```
+
+### `services/web/Dockerfile`
+
+```dockerfile
+FROM node:22-alpine@sha256:<digest> AS base
+WORKDIR /repo
+COPY package.json package-lock.json ./
+COPY packages/ ./packages/
+COPY services/web/package.json ./services/web/
+RUN npm ci
+
+FROM base AS dev
+RUN apk add --no-cache git curl bash vim
+RUN adduser -D -u 1000 appuser   # Alpine uses adduser -D, not useradd
+USER appuser
+
+FROM base AS build
+COPY services/web/ ./services/web/
+RUN npm run build --workspace=services/web
+
+FROM nginx:alpine@sha256:<digest> AS prod
+COPY --from=build /repo/services/web/dist /usr/share/nginx/html
+```
+
+> **Note for Alpine Linux:** Use `adduser -D` (not `useradd -ms /bin/bash`). `-D` creates a system user with no password — equivalent behavior, different command.
+
+### `devcontainer.json` changes from Part 4
+
+```json
+{
+    "workspaceFolder": "/repo/services/web",
+    "postCreateCommand": "git config --global --add safe.directory /repo && cd /repo && npm ci && test -f /repo/services/web/.env || cp /repo/services/web/.env.example /repo/services/web/.env"
+}
+```
+
+`postCreateCommand` now does real work:
+
+- Runs `npm ci` from `/repo` to populate the named volume and create all workspace symlinks
+- The `safe.directory` config is still needed — Docker Desktop on macOS causes UID mismatches that Git 2.35.2+ silently refuses
+
+### Root `docker-compose.yml` — shared volume
+
+```yaml
+volumes:
+    node_modules:
+```
+
+Declared once at the root, referenced by name in each JS service. A single shared volume means `npm ci` from any service populates deps for all of them.
+
+---
+
+## What changed from Part 4
+
+| Concern                       | Part 4                         | After Part 6                    |
+| ----------------------------- | ------------------------------ | ------------------------------- |
+| `workspaceFolder`             | `/workspace`                   | `/repo/services/web`            |
+| Bind mount source             | `services/web/`                | monorepo root                   |
+| `node_modules` location       | `/workspace/node_modules`      | `/repo/node_modules`            |
+| `postCreateCommand`           | near no-op                     | runs `npm ci` from `/repo`      |
+| `packages/` access            | deferred / second mount needed | included in monorepo root mount |
+| `mounts` in devcontainer.json | intentionally absent           | resolved — not needed           |
+
+---
+
+## Open items
+
+- **`api` service** — also consumes `@myorg/types`. Needs the same monorepo root bind mount and `node_modules` named volume. The Node toolchain in its dev stage also benefits from the shared volume.
+- **`worker` service** — Python only, no npm workspaces. Its `.venv` named volume follows the same Option A pattern and will be documented separately.
+- **Broker image** — still deferred from Part 3. No impact on volume strategy.

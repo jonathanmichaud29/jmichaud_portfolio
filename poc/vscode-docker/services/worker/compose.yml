@@ -1,12 +1,12 @@
 services:
     worker:
         build:
-            context: ./services/worker
+            context: .
             target: dev
         env_file: .env
         volumes:
-            - ./services/worker:/app
-            - venv:/app/.venv
+            - .:/workspace
+            - venv:/workspace/.venv
         depends_on:
             postgres:
                 condition: service_healthy

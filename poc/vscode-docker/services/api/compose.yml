@@ -2,12 +2,13 @@
 services:
     api:
         build:
-            context: ./services/api
+            context: .
             target: dev
         env_file: .env
         volumes:
-            - ./services/api:/var/www/html
-            - vendor:/var/www/html/vendor
+            - .:/workspace
+            - vendor:/workspace/vendor
+            - ../packages:/packages
         ports:
             - "8080:9000"
         depends_on:

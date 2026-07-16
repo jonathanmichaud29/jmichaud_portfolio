@@ -1,16 +1,18 @@
 FROM node:22-alpine@sha256:<digest> AS base
-WORKDIR /app
+WORKDIR /repo
 COPY package.json package-lock.json ./
+COPY packages/ ./packages/
+COPY services/web/package.json ./services/web/
 RUN npm ci
 
 FROM base AS dev
 RUN apk add --no-cache git curl bash vim
-RUN useradd -ms /bin/bash appuser
+RUN adduser -D -u 1000 appuser
 USER appuser
 
 FROM base AS build
-COPY . .
-RUN npm run build
+COPY services/web/ ./services/web/
+RUN npm run build --workspace=services/web
 
 FROM nginx:alpine@sha256:<digest> AS prod
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY --from=build /repo/services/web/dist /usr/share/nginx/html

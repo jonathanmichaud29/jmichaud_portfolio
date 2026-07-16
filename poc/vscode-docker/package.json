@@ -1,0 +1,17 @@
+/*
+* Turborepo note: When the team is ready to scale beyond 2-3 JS services, add turbo to root 
+* devDependencies and a turbo.json pipeline config. 
+* Turborepo sits on top of npm workspaces and adds parallel task execution, remote caching, 
+* and dependency-aware task ordering (build web only after build packages/types). 
+* The workspaces declaration above is already the foundation it needs — no restructuring required.
+*/
+{
+  "private": true,
+  "workspaces": [
+    "services/web",
+    "packages/types",
+    "packages/eslint-config",
+    "packages/tsconfig-base"
+  ],
+  "devDependencies": {}
+}

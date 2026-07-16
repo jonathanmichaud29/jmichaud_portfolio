@@ -172,8 +172,12 @@ body {
     color: #F4A9A9;
   }
   
-
+  .table-scroll-outer{
+    margin-bottom:2em;
+    border:1px solid var(--color-bg-surface-brighter);
+  }
   table{
+
     th {
       font-family: var(--font-mono);
       text-transform: uppercase;

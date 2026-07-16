@@ -30,7 +30,7 @@
     "target": "dev"
   },
 
-  "workspaceFolder": "/workspace",
+  "workspaceFolder": "/repo/services/web",
 
   "remoteUser": "appuser",
 
@@ -137,7 +137,7 @@
   //
   // For now: same minimal bootstrap as api and worker.
   // ============================================================
-  "postCreateCommand": "git config --global --add safe.directory /workspace && test -f /workspace/.env || cp /workspace/.env.example /workspace/.env",
+  "postCreateCommand": "git config --global --add safe.directory /repo && cd /repo && npm ci && test -f /repo/services/web/.env || cp /repo/services/web/.env.example /repo/services/web/.env",
 
   // Vite dev server (`npm run dev`) is not started here.
   // It's started by Docker Compose so logs are captured

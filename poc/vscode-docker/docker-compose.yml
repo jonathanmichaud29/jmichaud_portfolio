@@ -7,3 +7,6 @@ include:
 networks:
     frontend:
     backend:
+
+volumes:
+    node_modules:    # shared across all JS services
