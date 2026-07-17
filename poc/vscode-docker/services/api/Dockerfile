@@ -9,7 +9,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && rm -rf /var/lib/apt/lists/* \
   && pecl install xdebug \
   && docker-php-ext-enable xdebug
-RUN useradd -ms /bin/bash appuser
+ARG UID=1000
+ARG GID=1000
+RUN groupadd -g ${GID} appuser \
+  && useradd -u ${UID} -g ${GID} -m -s /bin/bash appuser
 USER appuser
 
 FROM base AS prod

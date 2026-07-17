@@ -1,0 +1,193 @@
+---
+type: tech-article
+title: "File Ownership and UID/GID Mapping in a Mixed-OS Dev Environment"
+description: "How container processes and the host user share files over bind mounts without permission conflicts — and why the answer changes completely on a mixed Windows/macOS/Linux team."
+publishedAt: 2026-07-17
+proficiencyLevel: intermediate
+dependencies:
+    - docker
+    - vscode
+    - make
+series: vscode-docker-setup
+seriesPart: 8
+tags:
+    - docker
+    - devcontainer
+    - permissions
+    - uid
+    - linux
+    - windows
+    - macos
+---
+
+# File Ownership and UID/GID Mapping
+
+This is part 6 of the series. At this point the monorepo structure, base images, Compose topology, devcontainer config, and volume strategy are all decided. The bind mount is in place: the monorepo root lives on the host and is mounted into each container at `/repo`. This article covers the one remaining question — what happens when two actors (the host user and the container process) touch the same files.
+
+## The core problem
+
+A bind mount exposes host files inside a container. On Linux, file ownership is enforced by numeric UID and GID, not by username. If the host user is UID 1001 and the container process runs as UID 1000, they are different users as far as the kernel is concerned. Depending on the file's permission bits and which direction the write goes, this produces either silent failure or a hard permission error.
+
+There are two failure modes:
+
+- **Container writes files the host cannot edit.** The container process creates a file owned by UID 1000. On the host, UID 1000 belongs to a different user — or nobody. The developer can't edit or delete the file without `sudo`.
+- **Host writes files the container cannot read.** Less common because source files are typically world-readable (`644`), but possible if the host creates files with restrictive permissions.
+
+The named volumes decided in Part 5 (`node_modules`, `vendor`, `.venv`) sidestep this entirely — they are written by the container, read by the container, and the host never touches them directly. UID mapping is irrelevant for named volumes. The bind-mounted source tree is the only surface where this problem exists.
+
+## What the team context changes
+
+Before evaluating options, three constraints from the project shaped the decision significantly:
+
+**Mixed Windows/macOS/Linux team.** A hardcoded UID 1000 is a macOS/Linux convention. It has no reliable meaning on Windows. On macOS with Docker Desktop (VirtioFS backend), the VM layer remaps file ownership transparently — UID conflicts between host and container don't surface as real errors, which makes UID 1000 appear to work even when the host user has a different UID. This is a macOS-only safety net, not a portable solution.
+
+**Caches and logs stay in the container.** Runtime writes — PHP opcache, Python `__pycache__`, log files, PID files — go to named volumes or container-internal paths (`/tmp`, `/var/cache/...`). The bind mount is logically read-only at runtime. A service writing into `/repo` at runtime is a misconfiguration to fix, not a permissions problem to work around. This constraint eliminates the most common source of UID conflicts entirely.
+
+**GitHub Actions for CI; Kubernetes for staging and production.** `docker compose` is strictly a local developer tool. CI builds images, runs tests, and pushes artifacts — it does not depend on files written from inside a container back to the runner filesystem. Staging and production both run on Kubernetes, so there is no environment where `docker compose` runs against a live server. This means the UID decision only needs to be correct for local development.
+
+## Options evaluated
+
+### Option A — Fixed UID 1000
+
+Hardcode `appuser` to UID 1000 in every Dockerfile dev stage. This is what the devcontainer config already assumed (`remoteUser: appuser`, established in Part 4).
+
+Works on macOS because Docker Desktop's VirtioFS remapping makes the UID conflict invisible. Works on Linux for any developer whose host UID happens to be 1000 (the first human user on most distros). Fails silently for Linux developers with a different UID, and is meaningless on Windows.
+
+**Rejected** because the team is mixed. A hardcoded UID 1000 is an invisible assumption that breaks unpredictably and produces errors with no obvious cause.
+
+### Option B — Build-arg UID injection
+
+Pass the host UID and GID into the image at build time via Docker build args. The container user is created with the exact UID/GID of the developer building the image. No UID conflict is possible because the container user _is_ the host user, numerically.
+
+**Chosen.**
+
+### Option C — `user:` runtime override in Compose
+
+```yaml
+services:
+    api:
+        user: "${UID:-1000}:${GID:-1000}"
+```
+
+No image rebuild needed. However, the container process runs as a UID that has no entry in `/etc/passwd`. Anything that does a passwd lookup breaks: `whoami`, some Python libraries, PHP extensions that check the running user, Git inside the container. Fragile at the edges.
+
+**Rejected.**
+
+### Option D — `userns-remap` at the Docker daemon level
+
+Maps all container UIDs to a subordinate UID range on the host. Solves the problem at the infrastructure level but requires per-machine Docker daemon configuration, not per-project configuration. Unavailable on macOS via Docker Desktop. Not realistic for a dev environment.
+
+**Rejected.**
+
+### Option E — Run as root in dev
+
+Don't set `USER` in the dev stage. No permission conflicts because root can read and write anything.
+
+Violates the dev/prod parity principle for security posture. VS Code warns when a devcontainer runs as root. Inconsistent with `remoteUser: appuser` already decided in Part 4.
+
+**Rejected.**
+
+## The decision
+
+**Option B — build-arg UID injection**, applied uniformly across all three service Dockerfiles.
+
+```dockerfile
+# Every Dockerfile dev stage — api, worker, web
+ARG UID=1000
+ARG GID=1000
+
+RUN groupadd -g ${GID} appuser \
+ && useradd -u ${UID} -g ${GID} -m -s /bin/bash appuser
+
+# All apt-get, chown, and other root operations above this line
+USER appuser
+```
+
+The build args are supplied through `docker-compose.override.yml`, which is gitignored. A committed example file documents the pattern:
+
+```yaml
+# docker-compose.override.yml.example
+services:
+    api:
+        build:
+            args:
+                UID: ${UID:-1000}
+                GID: ${GID:-1000}
+    worker:
+        build:
+            args:
+                UID: ${UID:-1000}
+                GID: ${GID:-1000}
+    web:
+        build:
+            args:
+                UID: ${UID:-1000}
+                GID: ${GID:-1000}
+```
+
+The values come from `.env`, populated by a `make init` target that every developer runs before their first build:
+
+```makefile
+init:
+	@echo "UID=$(shell id -u)" >> .env
+	@echo "GID=$(shell id -g)" >> .env
+	docker compose build
+```
+
+`make init` is the mandatory first step. It writes the host UID/GID into `.env` and builds all images. On macOS, Docker Desktop's remapping layer makes the build arg largely redundant in practice — but the pattern is correct on all platforms and costs nothing extra.
+
+## Windows developers: one critical constraint
+
+On Windows with the WSL2 backend, Docker Desktop runs containers inside a WSL2 Linux VM. Files on the Windows filesystem mounted into WSL2 (`/mnt/c/...`) receive synthetic ownership `1000:1000` regardless of build args, and filesystem performance through that path is significantly worse.
+
+**The repo must live on the WSL2 filesystem**, not on the Windows filesystem. `make init` is run from inside a WSL2 terminal. `id -u` inside WSL2 returns the WSL2 Linux UID, which is what matters.
+
+This is the single most impactful setup decision for a Windows developer on this stack. Document it first in the onboarding README. It is not a workaround — it is the correct way to use Docker on Windows.
+
+## GitHub Actions
+
+GitHub Actions hosted runners are Linux. The default user is `runner`. The UID for `runner` is not guaranteed stable across runner image updates (it has been 1001 historically, but this is an implementation detail, not a contract).
+
+Because CI does not rely on files written from inside a container back to the runner filesystem, this is not a UID mapping problem in practice. CI workflows build images, run tests, collect exit codes. Any test output that needs to leave the container — coverage reports, JUnit XML, build artifacts — is extracted explicitly:
+
+```yaml
+- name: Extract test results
+  run: docker cp $(docker ps -lq):/workspace/coverage ./coverage
+```
+
+Or via a dedicated output volume. Never via bind mount writes from inside the container.
+
+## Production divergence — PHP-FPM and www-data
+
+In the production image stage, PHP-FPM runs as `www-data` (UID 33 on Debian bookworm). Dev runs as `appuser` with a UID derived from the build arg (default 1000). This is an accepted and explicitly documented dev/prod divergence.
+
+Do not attempt to align them by making dev use `www-data`. UID 33 on a Linux developer's host belongs to a system account. Bind-mounted files created inside the container as `www-data` would be uneditable by the developer without `sudo`. The divergence is harmless: the bind mount is read-only at runtime, and named volumes are container-internal.
+
+The api Dockerfile carries a comment in the prod stage to prevent this from being "fixed" by a future developer:
+
+```dockerfile
+# --- prod stage ---
+# PHP-FPM runs as www-data (UID 33) in production.
+# Dev runs as appuser (UID from build arg, default 1000).
+# This divergence is intentional — do not change dev to match.
+# Aligning to www-data breaks host file ownership on Linux developers.
+USER www-data
+```
+
+## What is now closed
+
+| Question                    | Decision                                                      |
+| --------------------------- | ------------------------------------------------------------- |
+| UID strategy                | Build-arg injection (Option B)                                |
+| Default UID                 | 1000 (overridden per developer via `make init`)               |
+| Bind mount write discipline | Container never writes into `/repo` at runtime                |
+| Named volume ownership      | Container-internal, UID-agnostic — closed in Part 5           |
+| Windows setup               | Repo on WSL2 filesystem, `make init` from WSL2 terminal       |
+| CI bind mount writes        | Not used — artifacts extracted explicitly                     |
+| PHP-FPM prod user           | `www-data`, divergence from dev is intentional and documented |
+
+## Open items entering Part 7
+
+`.env` now carries two distinct categories of content: developer infrastructure (`UID`, `GID`) and application secrets (database credentials, API keys, etc.). Part 7 — environment variables and secrets — needs to address whether these live in one file or are split. Mixing infrastructure concerns with secrets in a single `.env` is worth a deliberate call before anyone writes a service that reads from it.
+
+The broker image remains deferred from Part 3.

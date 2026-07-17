@@ -7,7 +7,10 @@ RUN npm ci
 
 FROM base AS dev
 RUN apk add --no-cache git curl bash vim
-RUN adduser -D -u 1000 appuser
+ARG UID=1000
+ARG GID=1000
+RUN groupadd -g ${GID} appuser \
+  && useradd -u ${UID} -g ${GID} -m -s /bin/bash appuser
 USER appuser
 
 FROM base AS build

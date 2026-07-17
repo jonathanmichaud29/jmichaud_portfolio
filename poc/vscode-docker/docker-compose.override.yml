@@ -19,9 +19,36 @@
 # PERSONAL TOOLING
 # Mount personal config files or attach a local proxy.
 #
+# UID/GID
+# If linux user does not have the first default user UID on their system,
+# the user can override its UID/GID with build args. 
+# As an alternative, a makefile usage can achieve the same result.
+#
 # Example — mount a personal Xdebug config:
 #
 # services:
 #   api:
 #     volumes:
 #       - ./xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini:ro
+#     build:
+#       args:
+#         UID: ${UID:-1000}
+#         GID: ${GID:-1000}
+
+
+services:
+  api:
+    build:
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+  worker:
+    build:
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+  web:
+    build:
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}

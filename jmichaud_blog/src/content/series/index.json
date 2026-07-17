@@ -15,12 +15,14 @@
       "vscode-docker-pt4",
       "vscode-docker-pt5",
       "vscode-docker-pt6",
+      "vscode-docker-pt7",
       "vscode-docker-pt1-short",
       "vscode-docker-pt2-short",
       "vscode-docker-pt3-short",
       "vscode-docker-pt4-short",
       "vscode-docker-pt5-short",
-      "vscode-docker-pt6-short"
+      "vscode-docker-pt6-short",
+      "vscode-docker-pt7-short"
     ],
     "status" :  "active"
   },

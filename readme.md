@@ -91,6 +91,13 @@ Then in GitHub — Settings → Branches → Branch protection on main:
 ✅ Require PR before merging (you already have this)
 ✅ Do not allow bypassing the above settings
 
+### Unified UID/GID for devs
+
+```bash
+# Set UID/GID to .env file, before build docker images
+make init
+```
+
 ## TODO
 
 - [x] Finalize CSS for desktop/tablet/mobile
