@@ -3,7 +3,7 @@ import { defineConfig, fontProviders } from "astro/config";
 import { unified } from "@astrojs/markdown-remark"; // new
 import react from "@astrojs/react";
 import mdx from "@astrojs/mdx";
-import sitemap from "@astrojs/sitemap";
+import sitemap, { ChangeFreqEnum } from "@astrojs/sitemap";
 import node from "@astrojs/node";
 import tailwindcss from "@tailwindcss/vite";
 import { remarkReadingTime } from "./src/plugins/remark-reading-time";
@@ -44,7 +44,27 @@ export default defineConfig({
     }),
   },
 
-  integrations: [react(), mdx(), sitemap()],
+  integrations: [
+    react(),
+    mdx(),
+    sitemap({
+      serialize(item) {
+        // Exclude noindex pages
+        if (item.url.includes("/404")) return undefined;
+
+        // Boost blog posts
+        if (item.url.includes("/blog/")) {
+          return { ...item, priority: 0.8, changefreq: ChangeFreqEnum.WEEKLY };
+        }
+        // Series index
+        if (item.url.includes("/series/")) {
+          return { ...item, priority: 0.7, changefreq: ChangeFreqEnum.MONTHLY };
+        }
+        // Root + about
+        return { ...item, priority: 1.0, changefreq: ChangeFreqEnum.MONTHLY };
+      },
+    }),
+  ],
 
   adapter: node({
     mode: "standalone",
