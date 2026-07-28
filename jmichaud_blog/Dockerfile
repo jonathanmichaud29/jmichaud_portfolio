@@ -1,41 +1,18 @@
 # ============================================================
-# Stage 1 — Build
-# ============================================================
-FROM node:22.15.0-alpine AS builder
-
-# corepack reads packageManager from package.json — no version pinning needed here
-RUN corepack enable
-
-WORKDIR /app
-
-# Install dependencies first (layer cache — only re-runs when lockfile changes)
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
-
-# Copy source and build
-COPY . .
-RUN pnpm build
-
-# ============================================================
-# Stage 2 — Runtime
+# Runtime — expects dist/ to be pre-built locally and rsynced in
 # ============================================================
 FROM node:22.15.0-alpine AS runtime
 
-# corepack reads packageManager from package.json — no version pinning needed here
 RUN corepack enable
 
 WORKDIR /app
 
-# Copy only what the Node server needs to run
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/pnpm-lock.yaml ./
-COPY --from=builder /app/pnpm-workspace.yaml ./
-
-# Install production dependencies only
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile --prod
 
-# Astro Node adapter SSR entry point
+# dist/ is rsynced from local machine before this image is built
+COPY dist/ ./dist/
+
 ENV HOST=0.0.0.0
 ENV PORT=4321
 

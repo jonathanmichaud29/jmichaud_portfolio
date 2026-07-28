@@ -104,8 +104,8 @@ make init
 - [x] Create and validate SEO
 - [x] Create contact form endpoint
 - [x] Download Resume
-- [] Validate sitemap
-- [] Test build
+- [x] Validate sitemap
+- [x] Test build
 - [x] Create real blog entries
 - [] Validate final texts
 - [] Deploy Production

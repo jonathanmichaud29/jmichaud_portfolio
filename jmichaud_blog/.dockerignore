@@ -1,5 +1,5 @@
 node_modules
-dist
+# dist/ is intentionally absent — rsynced locally before docker build
 .git
 .env
 .vscode
