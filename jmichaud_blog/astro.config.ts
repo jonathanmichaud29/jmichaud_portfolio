@@ -36,6 +36,10 @@ export default defineConfig({
   vite: {
     // Type assertion needed: @tailwindcss/vite plugin type doesn't align with Vite's PluginOption
     plugins: [tailwindcss() as any],
+    ssr: {
+      // Force Vite to bundle these instead of treating them as external
+      noExternal: ["resend"],
+    },
   },
 
   markdown: {

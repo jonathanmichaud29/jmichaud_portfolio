@@ -1,6 +1,4 @@
-REMOTE_USER := youruser
-REMOTE_HOST := your.server.com
-REMOTE_DIR  := /var/www/jmichaud-blog
+-include .env.deploy
 
 .PHONY: dev dev-d down logs prod-local deploy deploy-check
 
@@ -27,24 +25,32 @@ logs:
 # Use this to validate nginx.conf changes, SSR endpoint, or pre-deploy smoke test.
 # Access: http://localhost:8080
 prod-local:
+	pnpm build
 	docker compose up --build --remove-orphans
 
 # ── Build locally, then deploy files on server ─────────────────────────
 # The rsync --delete on dist/ is critical — Astro hashes asset filenames (_astro/chunk.abc123.js). 
 # Without --delete, stale hashed files accumulate on the server indefinitely.
+# Sequence:
+#   1. pnpm build         — produces dist/client/ and dist/server/ locally
+#   2. rsync dist/        — ships artifacts to server (--delete removes stale hashed files)
+#   3. ssh systemctl      — restarts the Node systemd unit to pick up new dist/server/
+#
+# Assumptions:
+#   - SSH key auth is configured for $(REMOTE_USER)@$(REMOTE_HOST)
+#   - Node runs as a systemd unit named jmichaud-blog on the server
+#   - dist/ exists at $(REMOTE_DIR)/dist/ on the server (mkdir -p once manually)
 deploy:
-	@echo "→ Building production artifacts locally (inside Docker)..."
-	docker compose up --build --remove-orphans
-	@# ↑ This runs pnpm build inside node:22.15.0-alpine — guaranteed env
 
-	#@echo "→ Syncing dist/ to server..."
-#	rsync -avz --delete \
-#		dist/ \
-#		$(REMOTE_USER)@$(REMOTE_HOST):$(REMOTE_DIR)/dist/
+	@echo "→ Building production artifacts..."
+	pnpm build
 
-#	@echo "→ Restarting Node on server..."
-#	ssh $(REMOTE_USER)@$(REMOTE_HOST) \
-#		"systemctl restart jmichaud-blog"
+	@echo "→ Syncing dist/ to server..."
+	rsync -avz --delete \
+		dist/ \
+		$(REMOTE_USER)@$(REMOTE_HOST):$(REMOTE_DIR)/dist/
+	
+	@echo "✓ Deploy complete — run 'make deploy-check' to verify"
 
 deploy-check:
 #	@ssh $(REMOTE_USER)@$(REMOTE_HOST) \
