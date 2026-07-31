@@ -20,6 +20,8 @@ services:
       # Prevents the bind mount above from shadowing it with the host's
       # node_modules (which may be absent or built for a different OS/arch).
       - /app/node_modules
+      - vite_cache:/app/node_modules/.vite  # ADD THIS
+
     ports:
       # Expose Astro dev server directly — no Nginx in front.
       # Nginx is a production concern; it adds no value in the dev loop.
@@ -37,3 +39,6 @@ services:
     # Disable it entirely to avoid a misleading running-but-useless container.
     profiles:
       - production-only
+
+volumes:
+  vite_cache
